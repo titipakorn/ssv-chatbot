@@ -15,16 +15,19 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/go-redis/redis/v7"
-	"github.com/line/line-bot-sdk-go/linebot"
+	_ "github.com/lib/pq"
 )
 
 func main() {
+
 	client := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "", // no password set
@@ -52,11 +55,51 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	result, err := app.Reserve("sipp11")
+	userID := "sipp11"
+	reserveRec, err := app.Reserve(userID)
 	if err != nil {
 		fmt.Println("reserve err: ", err)
 	}
-	fmt.Println("reserve status: ", result)
+	fmt.Println("reserve status: ", reserveRec)
+	nextState := reserveRec.WhatsNext()
+	fmt.Println("NEXT state: ", nextState)
+	if nextState == "to" {
+		// set to next state and wait for reply
+		reserveRec.State = nextState
+		buff, _ := json.Marshal(&reserveRec)
+		if err := app.rdb.Set(userID, buff, 5*time.Minute).Err(); err != nil {
+			fmt.Println(" >> err: update state: ", err)
+		}
+		curr, err := app.ProcessReservationStep(userID, Reply{Text: "CITI Resort"})
+		if err != nil {
+			fmt.Println(" >> to err: ", err)
+		}
+		fmt.Println(" >> current state: ", curr)
+	} else if nextState == "from" {
+		// set to next state and wait for reply
+		reserveRec.State = nextState
+		buff, _ := json.Marshal(&reserveRec)
+		if err := app.rdb.Set(userID, buff, 4*time.Minute).Err(); err != nil {
+			fmt.Println(" >> err: update state: ", err)
+		}
+		curr, err := app.ProcessReservationStep(userID, Reply{Text: "BTS A"})
+		if err != nil {
+			fmt.Println(" >> to err: ", err)
+		}
+		fmt.Println(" >> current state: ", curr)
+	} else if nextState == "when" {
+		// set to next state and wait for reply
+		reserveRec.State = nextState
+		buff, _ := json.Marshal(&reserveRec)
+		if err := app.rdb.Set(userID, buff, 3*time.Minute).Err(); err != nil {
+			fmt.Println(" >> err: update state: ", err)
+		}
+		curr, err := app.ProcessReservationStep(userID, Reply{Text: "2020-04-15T19:00:00+07:00"})
+		if err != nil {
+			fmt.Println(" >> to err: ", err)
+		}
+		fmt.Println(" >> current state: ", curr)
+	}
 
 	// serve /static/** files
 	staticFileServer := http.FileServer(http.Dir("static"))
@@ -72,12 +115,4 @@ func main() {
 		log.Fatal(err)
 	}
 
-}
-
-// HailingApp app
-type HailingApp struct {
-	bot         *linebot.Client
-	rdb         *redis.Client
-	appBaseURL  string
-	downloadDir string
 }
