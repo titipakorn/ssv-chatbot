@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 
 	"github.com/go-redis/redis/v7"
 	_ "github.com/lib/pq"
@@ -27,10 +28,21 @@ type HailingApp struct {
 
 // NewHailingApp function
 func NewHailingApp(channelSecret, channelToken, appBaseURL string) (*HailingApp, error) {
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379"
+	}
+	redisPassword := os.Getenv("REDIS_PASSWORD")
+	redisDB, _ := strconv.Atoi(os.Getenv("REDIS_DB"))
+	postgresURI := os.Getenv("POSTGRES_URI")
+	if postgresURI == "" {
+		postgresURI = "postgres://sipp11:banshee10@localhost/hailing?sslmode=verify-full"
+	}
 	apiEndpointBase := os.Getenv("ENDPOINT_BASE")
 	if apiEndpointBase == "" {
 		apiEndpointBase = linebot.APIEndpointBase
 	}
+
 	bot, err := linebot.New(
 		channelSecret,
 		channelToken,
@@ -48,9 +60,9 @@ func NewHailingApp(channelSecret, channelToken, appBaseURL string) (*HailingApp,
 	}
 
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
+		Addr:     redisAddr,
+		Password: redisPassword,
+		DB:       redisDB,
 	})
 
 	connStr := "postgres://pqgotest:password@localhost/pqgotest?sslmode=verify-full"
