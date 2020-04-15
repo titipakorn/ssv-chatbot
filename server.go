@@ -22,31 +22,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/go-redis/redis/v7"
 	_ "github.com/lib/pq"
 )
 
 func main() {
 
-	client := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})
-	err := client.Set("key", "hello world", 0).Err()
-	if err != nil {
-		panic(err)
-	}
-
-	val, err := client.Get("key").Result()
-	if err == redis.Nil {
-		fmt.Println("key does not exist")
-	} else if err != nil {
-		panic(err)
-	} else {
-		fmt.Println("key = ", val)
-	}
-	fmt.Println("key", val)
 	app, err := NewHailingApp(
 		os.Getenv("CHANNEL_SECRET"),
 		os.Getenv("CHANNEL_TOKEN"),
