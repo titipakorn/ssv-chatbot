@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -11,8 +12,18 @@ import (
 	"path/filepath"
 
 	"github.com/go-redis/redis/v7"
+	_ "github.com/lib/pq"
 	"github.com/line/line-bot-sdk-go/linebot"
 )
+
+// HailingApp app
+type HailingApp struct {
+	bot         *linebot.Client
+	rdb         *redis.Client
+	pdb         *sql.DB
+	appBaseURL  string
+	downloadDir string
+}
 
 // NewHailingApp function
 func NewHailingApp(channelSecret, channelToken, appBaseURL string) (*HailingApp, error) {
@@ -42,9 +53,13 @@ func NewHailingApp(channelSecret, channelToken, appBaseURL string) (*HailingApp,
 		DB:       0,  // use default DB
 	})
 
+	connStr := "postgres://pqgotest:password@localhost/pqgotest?sslmode=verify-full"
+	psqlDB, err := sql.Open("postgres", connStr)
+
 	return &HailingApp{
 		bot:         bot,
 		rdb:         rdb,
+		pdb:         psqlDB,
 		appBaseURL:  appBaseURL,
 		downloadDir: downloadDir,
 	}, nil
