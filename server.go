@@ -36,7 +36,7 @@ func main() {
 		log.Fatal(err)
 	}
 	userID := "sipp11"
-	reserveRec, err := app.Reserve(userID)
+	reserveRec, err := app.FindRecord(userID)
 	if err != nil {
 		fmt.Println("reserve err: ", err)
 	}

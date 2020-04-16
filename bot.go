@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,72 +9,32 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
+	"time"
 
-	"github.com/go-redis/redis/v7"
-	_ "github.com/lib/pq"
 	"github.com/line/line-bot-sdk-go/linebot"
 )
 
-// HailingApp app
-type HailingApp struct {
-	bot         *linebot.Client
-	rdb         *redis.Client
-	pdb         *sql.DB
-	appBaseURL  string
-	downloadDir string
-}
-
-// NewHailingApp function
-func NewHailingApp(channelSecret, channelToken, appBaseURL string) (*HailingApp, error) {
-	redisAddr := os.Getenv("REDIS_ADDR")
-	if redisAddr == "" {
-		redisAddr = "localhost:6379"
-	}
-	redisPassword := os.Getenv("REDIS_PASSWORD")
-	redisDB, _ := strconv.Atoi(os.Getenv("REDIS_DB"))
-	postgresURI := os.Getenv("POSTGRES_URI")
-	if postgresURI == "" {
-		postgresURI = "postgres://sipp11:banshee10@localhost/hailing?sslmode=verify-full"
-	}
-	apiEndpointBase := os.Getenv("ENDPOINT_BASE")
-	if apiEndpointBase == "" {
-		apiEndpointBase = linebot.APIEndpointBase
-	}
-
-	bot, err := linebot.New(
-		channelSecret,
-		channelToken,
-		linebot.WithEndpointBase(apiEndpointBase), // Usually you omit this.
-	)
-	if err != nil {
-		return nil, err
-	}
-	downloadDir := filepath.Join(filepath.Dir(os.Args[0]), "line-bot")
-	_, err = os.Stat(downloadDir)
-	if err != nil {
-		if err := os.Mkdir(downloadDir, 0777); err != nil {
-			return nil, err
+/* This bot will take care of message coming through line bot basically I find that there are 2 types we will have
+* EventTypeMessage  - any message from user will belong here
+* EventTypePostback - this is from the buttons and such.
+	linebot.NewPostbackAction("言 hello2", "hello こんにちは", "hello こんにちは", ""),
+	   PostbackAction struct {
+			Label       string
+			Data        string
+			Text        string
+			DisplayText string
 		}
-	}
+	linebot.NewDatetimePickerAction("datetime", "DATETIME", "datetime", "", "", ""),
+		type DatetimePickerAction struct {
+			Label   string
+			Data    string
+			Mode    string
+			Initial string
+			Max     string
+			Min     string
+		}
 
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     redisAddr,
-		Password: redisPassword,
-		DB:       redisDB,
-	})
-
-	connStr := "postgres://pqgotest:password@localhost/pqgotest?sslmode=verify-full"
-	psqlDB, err := sql.Open("postgres", connStr)
-
-	return &HailingApp{
-		bot:         bot,
-		rdb:         rdb,
-		pdb:         psqlDB,
-		appBaseURL:  appBaseURL,
-		downloadDir: downloadDir,
-	}, nil
-}
+*/
 
 // Callback function for http server
 func (app *HailingApp) Callback(w http.ResponseWriter, r *http.Request) {
@@ -91,6 +50,39 @@ func (app *HailingApp) Callback(w http.ResponseWriter, r *http.Request) {
 	for _, event := range events {
 		log.Printf("Got event %v", event)
 		switch event.Type {
+		case linebot.EventTypePostback:
+			data := event.Postback.Data
+			userID := event.Source.UserID
+			var reply Reply
+			switch data {
+			case "FROM":
+			case "TO":
+				msg := fmt.Sprintf("%v", event.Postback.Params)
+				reply = Reply{Text: msg}
+			case "WHEN":
+				layout := "2006-01-02T15:04:05.000Z"
+				str := fmt.Sprintf("%v+07:00", event.Postback.Params.Datetime)
+				t, err := time.Parse(layout, str)
+				if err != nil {
+					log.Print(err)
+				}
+				reply = Reply{Datetime: t}
+			}
+			record, err := app.ProcessReservationStep(userID, reply)
+			if err != nil {
+				log.Print(err)
+			}
+			nextStep := record.WhatsNext()
+
+			if nextStep != "done" {
+				app.askNextQuestion(event.ReplyToken, nextStep)
+				return
+			}
+
+			if err := app.replyText(event.ReplyToken, "Got postback: "+data); err != nil {
+				log.Print(err)
+			}
+
 		case linebot.EventTypeMessage:
 			switch message := event.Message.(type) {
 			case *linebot.TextMessage:
@@ -124,34 +116,40 @@ func (app *HailingApp) Callback(w http.ResponseWriter, r *http.Request) {
 			default:
 				log.Printf("Unknown message: %v", message)
 			}
-		case linebot.EventTypeFollow:
-			if err := app.replyText(event.ReplyToken, "Got followed event"); err != nil {
-				log.Print(err)
-			}
-		case linebot.EventTypeUnfollow:
-			log.Printf("Unfollowed this bot: %v", event)
-		case linebot.EventTypeJoin:
-			if err := app.replyText(event.ReplyToken, "Joined "+string(event.Source.Type)); err != nil {
-				log.Print(err)
-			}
-		case linebot.EventTypeLeave:
-			log.Printf("Left: %v", event)
-		case linebot.EventTypePostback:
-			data := event.Postback.Data
-			if data == "DATE" || data == "TIME" || data == "DATETIME" {
-				data += fmt.Sprintf("(%v)", *event.Postback.Params)
-			}
-			if err := app.replyText(event.ReplyToken, "Got postback: "+data); err != nil {
-				log.Print(err)
-			}
-		case linebot.EventTypeBeacon:
-			if err := app.replyText(event.ReplyToken, "Got beacon: "+event.Beacon.Hwid); err != nil {
-				log.Print(err)
-			}
+		/*
+			case linebot.EventTypeFollow:
+				if err := app.replyText(event.ReplyToken, "Got followed event"); err != nil {
+					log.Print(err)
+				}
+			case linebot.EventTypeUnfollow:
+				log.Printf("Unfollowed this bot: %v", event)
+			case linebot.EventTypeJoin:
+				if err := app.replyText(event.ReplyToken, "Joined "+string(event.Source.Type)); err != nil {
+					log.Print(err)
+				}
+			case linebot.EventTypeLeave:
+				log.Printf("Left: %v", event)
+			case linebot.EventTypeBeacon:
+				if err := app.replyText(event.ReplyToken, "Got beacon: "+event.Beacon.Hwid); err != nil {
+					log.Print(err)
+				}
+		*/
 		default:
 			log.Printf("Unknown event: %v", event)
 		}
 	}
+}
+
+// askNextQuestion handles how bot would ask user for each step appropriately.
+// TODO: implement this.
+func (app *HailingApp) askNextQuestion(replyToken string, step string) error {
+	if _, err := app.bot.ReplyMessage(
+		replyToken,
+		linebot.NewTextMessage(step),
+	).Do(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (app *HailingApp) handleText(message *linebot.TextMessage, replyToken string, source *linebot.EventSource) error {
