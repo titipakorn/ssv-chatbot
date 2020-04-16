@@ -10,6 +10,7 @@ import (
 	"github.com/go-redis/redis/v7"
 )
 
+// ReservationRecord : whole process record
 type ReservationRecord struct {
 	State      string    `json:"state"` // i.e. init, from, to, when,
 	From       string    `json:"from"`
@@ -22,12 +23,14 @@ type ReservationRecord struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// Reply : to store reply in various message type
 type Reply struct {
 	Text     string     `json:"text"`
 	Datetime time.Time  `json:"datetime"`
 	Coords   [2]float64 `json:"coords"`
 }
 
+// WhatsNext : to ask what should be the next step
 func (record *ReservationRecord) WhatsNext() string {
 	// all states are init, from, to, when
 	switch record.State {
@@ -49,6 +52,7 @@ func (record *ReservationRecord) WhatsNext() string {
 	}
 }
 
+// Cancel : to cancel this reservation
 func (app *HailingApp) Cancel(userID string) (int64, error) {
 
 	n, err := app.rdb.Del(userID).Result()
@@ -59,7 +63,49 @@ func (app *HailingApp) Cancel(userID string) (int64, error) {
 
 }
 
-func (app *HailingApp) Reserve(userID string) (*ReservationRecord, error) {
+// NextStep will return next state and update the state of the record to that
+func (app *HailingApp) NextStep(userID string) (*ReservationRecord, string) {
+	rec, err := app.FindRecord(userID)
+	if err != nil {
+		return nil, "-"
+	}
+	nextStep := rec.WhatsNext()
+	rec.State = nextStep
+
+	buff, _ := json.Marshal(&rec)
+	err = app.rdb.Set(userID, buff, 5*time.Minute).Err()
+	if err != nil {
+		log.Fatal(err)
+		return nil, "-"
+	}
+	return rec, nextStep
+}
+
+// DoneAndSave is to record this completed reservation to a permanent medium (postgresl) instead of Redis
+func (app *HailingApp) DoneAndSave(userID string) (int, error) {
+	// Double check
+	result, err := app.rdb.Get(userID).Result()
+	if err != nil {
+		return -1, errors.New("There is a problem")
+	}
+	var rec ReservationRecord
+	json.Unmarshal([]byte(result), &rec)
+	if rec.From == "" || rec.To == "" || rec.ReservedAt.String() == "0001-01-01 00:00:00 +0000" {
+		return -1, errors.New("Something is wrong [ERR: R76]")
+	}
+	var tripID int
+	err = app.pdb.QueryRow(`
+	INSERT INTO trip("user_id", "from", "to", "reserved_at")
+	VALUES($1, $2, $3, $4) RETURNING id
+	`, rec.UserID, rec.From, rec.To, rec.ReservedAt).Scan(&tripID)
+	if err != nil {
+		return -1, err
+	}
+	return tripID, nil
+}
+
+// FindRecord : this is the one to start everything
+func (app *HailingApp) FindRecord(userID string) (*ReservationRecord, error) {
 	fmt.Println("Reserve: ", userID)
 	result, err := app.rdb.Get(userID).Result()
 	if err == redis.Nil {
@@ -87,6 +133,12 @@ func (app *HailingApp) initReservation(userID string) (*ReservationRecord, error
 	return &newRecord, nil
 }
 
+// ThrowbackQuestion will throw back a question for this state
+// It should return the expected question & answer type
+func (app *HailingApp) ThrowbackQuestion(userID string) error {
+	return nil
+}
+
 func isLocation(reply Reply) bool {
 	// TODO: implement this
 	return true
@@ -97,14 +149,18 @@ func isTime(reply Reply) (time.Time, bool) {
 	return time.Now(), true
 }
 
+// ProcessReservationStep will handle every step of reservation
 func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*ReservationRecord, error) {
 
 	result, err := app.rdb.Get(userID).Result()
+	fmt.Println("1 result -- : ", userID, result, err)
 	if err != nil {
 		return nil, errors.New("There is a problem")
 	}
+	fmt.Println("2 result -- : ", result)
 	var rec ReservationRecord
 	json.Unmarshal([]byte(result), &rec)
+	fmt.Println("3 result -- : ", rec)
 
 	switch rec.State {
 	case "from":
@@ -132,6 +188,7 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 		}
 		return nil, errors.New("Wrong state")
 	}
+	fmt.Println("here : ", rec)
 
 	buff, _ := json.Marshal(&rec)
 	if err := app.rdb.Set(userID, buff, 5*time.Minute).Err(); err != nil {
