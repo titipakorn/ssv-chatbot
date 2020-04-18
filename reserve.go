@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/go-redis/redis/v7"
@@ -13,6 +14,7 @@ import (
 // ReservationRecord : whole process record
 type ReservationRecord struct {
 	State      string    `json:"state"` // i.e. init, from, to, when,
+	Waiting    string    `json:"waiting"`
 	From       string    `json:"from"`
 	To         string    `json:"to"`
 	UserID     string    `json:"user_id"`
@@ -28,6 +30,21 @@ type Reply struct {
 	Text     string     `json:"text"`
 	Datetime time.Time  `json:"datetime"`
 	Coords   [2]float64 `json:"coords"`
+}
+
+// QuickReplyButton contains necessary info for linebot.NewQuickReplyButton
+type QuickReplyButton struct {
+	Image string `json:"image"`
+	Label string `json:"label"`
+	Text  string `json:"text"`
+}
+
+// Question contains what's the message and extra options for Chatbot
+type Question struct {
+	Text          string `json:"text"`
+	Buttons       []QuickReplyButton
+	DatetimeInput bool
+	LocationInput bool
 }
 
 // WhatsNext : to ask what should be the next step
@@ -70,7 +87,7 @@ func (app *HailingApp) NextStep(userID string) (*ReservationRecord, string) {
 		return nil, "-"
 	}
 	nextStep := rec.WhatsNext()
-	rec.State = nextStep
+	rec.Waiting = nextStep
 
 	buff, _ := json.Marshal(&rec)
 	err = app.rdb.Set(userID, buff, 5*time.Minute).Err()
@@ -106,7 +123,7 @@ func (app *HailingApp) DoneAndSave(userID string) (int, error) {
 
 // FindRecord : this is the one to start everything
 func (app *HailingApp) FindRecord(userID string) (*ReservationRecord, error) {
-	fmt.Println("Reserve: ", userID)
+	// fmt.Println("Reserve: ", userID)
 	result, err := app.rdb.Get(userID).Result()
 	if err == redis.Nil {
 		return app.initReservation(userID)
@@ -133,10 +150,87 @@ func (app *HailingApp) initReservation(userID string) (*ReservationRecord, error
 	return &newRecord, nil
 }
 
-// ThrowbackQuestion will throw back a question for this state
+// ThrowbackQuestion will throw back a question for this waiting state
 // It should return the expected question & answer type
 func (app *HailingApp) ThrowbackQuestion(userID string) error {
+	rec, err := app.FindRecord(userID)
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+	// there are
+	fmt.Println(rec)
+
 	return nil
+}
+
+// QuestionToAsk
+func (record *ReservationRecord) QuestionToAsk() Question {
+	switch strings.ToLower(record.Waiting) {
+	case "when":
+		buttons := []QuickReplyButton{
+			{
+				Label: "Now",
+				Text:  "now",
+			},
+			{
+				Label: "In 15 mins",
+				Text:  "+15min",
+			},
+			{
+				Label: "In 30 mins",
+				Text:  "+30min",
+			},
+		}
+		return Question{
+			Text:          "When?",
+			Buttons:       buttons,
+			DatetimeInput: true,
+		}
+	case "to":
+		buttons := []QuickReplyButton{
+			{
+				Label: "Condo A",
+				Text:  "condo-a",
+			},
+			{
+				Label: "CITI Resort",
+				Text:  "citi-resort",
+			},
+			{
+				Label: "BTS Phromphong",
+				Text:  "bts-1",
+			},
+		}
+		return Question{
+			Text:          "Where to?",
+			Buttons:       buttons,
+			LocationInput: true,
+		}
+	case "from":
+		buttons := []QuickReplyButton{
+			{
+				Label: "Condo A",
+				Text:  "condo-a",
+			},
+			{
+				Label: "CITI Resort",
+				Text:  "citi-resort",
+			},
+			{
+				Label: "BTS Phromphong",
+				Text:  "bts-1",
+			},
+		}
+		return Question{
+			Text:          "Pickup location?",
+			Buttons:       buttons,
+			LocationInput: true,
+		}
+	}
+	return Question{
+		Text: "n/a",
+	}
 }
 
 func isLocation(reply Reply) bool {
@@ -152,17 +246,12 @@ func isTime(reply Reply) (time.Time, bool) {
 // ProcessReservationStep will handle every step of reservation
 func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*ReservationRecord, error) {
 
-	result, err := app.rdb.Get(userID).Result()
-	fmt.Println("1 result -- : ", userID, result, err)
+	rec, err := app.FindRecord(userID)
 	if err != nil {
 		return nil, errors.New("There is a problem")
 	}
-	fmt.Println("2 result -- : ", result)
-	var rec ReservationRecord
-	json.Unmarshal([]byte(result), &rec)
-	fmt.Println("3 result -- : ", rec)
 
-	switch rec.State {
+	switch rec.Waiting {
 	case "from":
 		if !isLocation(reply) {
 			return nil, errors.New("No location")
@@ -176,11 +265,12 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 	case "when":
 		tm, good := isTime(reply)
 		if !good {
-			return nil, errors.New("No location")
+			return nil, errors.New("Not date ")
 		}
 		rec.ReservedAt = tm
 	default:
 		rec.State = "init"
+		rec.Waiting = rec.WhatsNext()
 		buff, _ := json.Marshal(&rec)
 		if err := app.rdb.Set(userID, buff, 5*time.Minute).Err(); err != nil {
 			log.Fatal(err)
@@ -188,12 +278,14 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 		}
 		return nil, errors.New("Wrong state")
 	}
-	fmt.Println("here : ", rec)
+	// fmt.Println("here : ", rec)
 
+	rec.State = rec.Waiting
+	rec.Waiting = rec.WhatsNext()
 	buff, _ := json.Marshal(&rec)
 	if err := app.rdb.Set(userID, buff, 5*time.Minute).Err(); err != nil {
 		log.Fatal(err)
 		return nil, err
 	}
-	return &rec, nil
+	return rec, nil
 }
