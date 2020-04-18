@@ -1,10 +1,14 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	_ "github.com/lib/pq"
 )
 
 func TestInitReserve(t *testing.T) {
@@ -23,9 +27,19 @@ func TestInitReserve(t *testing.T) {
 		t.Error("App initialization failed ", err)
 	}
 
-	userID := "a3a603e2-ac05-f4c7-b8c3-8ddec538a486"
+	uuid, err := uuid.NewUUID()
+	if err != nil {
+		t.Error("UUID generation failed: ", err)
+	}
+	userID := uuid.String()
+	fmt.Printf("UUID: %v\n", userID)
+
 	// clean up redis first
 	app.Cancel(userID)
+	// make sure that user existed in psql - user
+	if err := initUser(app.pdb, userID); err != nil {
+		t.Error("InitUser failed: ", err)
+	}
 
 	rec, err := app.FindRecord(userID)
 	if err != nil {
@@ -37,7 +51,8 @@ func TestInitReserve(t *testing.T) {
 	}
 
 	// [1]
-	rec, step1 := app.NextStep(userID)
+	// rec, step1 := app.NextStep(userID)
+	step1 := rec.Waiting
 	if step1 != "to" {
 		t.Errorf("[1] App state is not 'to' != %v", step1)
 	}
@@ -47,7 +62,6 @@ func TestInitReserve(t *testing.T) {
 		Text: "BTS A",
 	}
 	rec, err = app.ProcessReservationStep(userID, step1reply)
-	fmt.Print(rec)
 	if err != nil {
 		t.Error("    processing failed: ", err)
 	}
@@ -57,7 +71,8 @@ func TestInitReserve(t *testing.T) {
 	}
 
 	// [2]
-	rec, step2 := app.NextStep(userID)
+	// rec, step2 := app.NextStep(userID)
+	step2 := rec.Waiting
 	if step2 != "from" {
 		t.Errorf("[2] App state is not 'from' != %v", step2)
 	}
@@ -67,7 +82,6 @@ func TestInitReserve(t *testing.T) {
 		Text: "CITI Resort",
 	}
 	rec, err = app.ProcessReservationStep(userID, step2reply)
-	fmt.Print(rec)
 	if err != nil {
 		t.Error("    processing failed: ", err)
 	}
@@ -77,7 +91,8 @@ func TestInitReserve(t *testing.T) {
 	}
 
 	// [3]
-	rec, step3 := app.NextStep(userID)
+	// rec, step3 := app.NextStep(userID)
+	step3 := rec.Waiting
 	if step3 != "when" {
 		t.Errorf("[3] App state is not 'when' != %v", step3)
 	}
@@ -87,7 +102,6 @@ func TestInitReserve(t *testing.T) {
 		Datetime: time.Now().Add(15 * time.Minute),
 	}
 	rec, err = app.ProcessReservationStep(userID, step3reply)
-	fmt.Print(rec)
 	if err != nil {
 		t.Error("    processing failed: ", err)
 	}
@@ -97,16 +111,74 @@ func TestInitReserve(t *testing.T) {
 	}
 
 	// [4]
-	lastStep := rec.WhatsNext()
+	// lastStep := rec.WhatsNext()
+	lastStep := rec.Waiting
 	if lastStep != "done" {
 		t.Errorf("[4] App state is not 'done' != %v", lastStep)
 	}
 
-	total, err := app.DoneAndSave(userID)
+	tripID, err := app.DoneAndSave(userID)
 	if err != nil {
 		t.Error("    processing failed: ", err)
 	}
-	if total != 1 {
-		t.Errorf("    psql insert count != 1 (=%d) ", total)
+	if tripID < 1 {
+		t.Errorf("    psql insert to tripID wrongly (=%v) ", tripID)
 	}
+}
+
+func TestQuestionFromEachState(t *testing.T) {
+	record := ReservationRecord{
+		State:   "init",
+		Waiting: "to",
+	}
+	q1 := record.QuestionToAsk()
+	fmt.Println(q1)
+	if q1.Text != "Where to?" {
+		t.Errorf("Where to? != %v", q1.Text)
+	}
+
+	record.State = "to"
+	record.Waiting = "from"
+	q2 := record.QuestionToAsk()
+	if q2.Text != "Pickup location?" {
+		t.Errorf("Pickup location? != %v", q2.Text)
+	}
+
+	record.State = "from"
+	record.Waiting = "when"
+	q3 := record.QuestionToAsk()
+	if q3.Text != "When?" {
+		t.Errorf("When? != %v", q3.Text)
+	}
+
+}
+
+func initUser(db *sql.DB, userID string) error {
+
+	cleanUp(db, userID)
+
+	_, err := db.Exec(`
+	INSERT INTO "user" (id, username)
+	VALUES ($1, $2)`, userID, "test_user")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func cleanUp(db *sql.DB, userID string) error {
+
+	_, err := db.Exec(`
+		DELETE FROM "trip"
+        WHERE user_id IN (
+	    SELECT id FROM "user" WHERE id=$1 OR username=$2
+        )`, userID, "test_user")
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`DELETE FROM "user" WHERE id=$1 OR username=$2`, userID, "test_user")
+	if err != nil {
+		return err
+	}
+	return nil
 }
