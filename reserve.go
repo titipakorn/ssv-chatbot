@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -82,7 +84,7 @@ func (app *HailingApp) Cancel(userID string) (int64, error) {
 
 // NextStep will return next state and update the state of the record to that
 func (app *HailingApp) NextStep(userID string) (*ReservationRecord, string) {
-	rec, err := app.FindRecord(userID)
+	rec, err := app.FindOrCreateRecord(userID)
 	if err != nil {
 		return nil, "-"
 	}
@@ -121,11 +123,12 @@ func (app *HailingApp) DoneAndSave(userID string) (int, error) {
 	return tripID, nil
 }
 
-// FindRecord : this is the one to start everything
-func (app *HailingApp) FindRecord(userID string) (*ReservationRecord, error) {
+// FindOrCreateRecord : this is the one to start everything
+func (app *HailingApp) FindOrCreateRecord(userID string) (*ReservationRecord, error) {
 	// fmt.Println("Reserve: ", userID)
 	result, err := app.rdb.Get(userID).Result()
 	if err == redis.Nil {
+		log.Println("[FindOrCreateRecord] init new one")
 		return app.initReservation(userID)
 	} else if err != nil {
 		return nil, errors.New("There is a problem")
@@ -137,8 +140,9 @@ func (app *HailingApp) FindRecord(userID string) (*ReservationRecord, error) {
 
 func (app *HailingApp) initReservation(userID string) (*ReservationRecord, error) {
 	newRecord := ReservationRecord{
-		UserID: userID,
-		State:  "init",
+		UserID:  userID,
+		State:   "init",
+		Waiting: "to",
 	}
 
 	buff, _ := json.Marshal(&newRecord)
@@ -150,21 +154,7 @@ func (app *HailingApp) initReservation(userID string) (*ReservationRecord, error
 	return &newRecord, nil
 }
 
-// ThrowbackQuestion will throw back a question for this waiting state
-// It should return the expected question & answer type
-func (app *HailingApp) ThrowbackQuestion(userID string) error {
-	rec, err := app.FindRecord(userID)
-	if err != nil {
-		log.Fatal(err)
-		return err
-	}
-	// there are
-	fmt.Println(rec)
-
-	return nil
-}
-
-// QuestionToAsk
+// QuestionToAsk returns a question appropriate for each state
 func (record *ReservationRecord) QuestionToAsk() Question {
 	switch strings.ToLower(record.Waiting) {
 	case "when":
@@ -199,7 +189,7 @@ func (record *ReservationRecord) QuestionToAsk() Question {
 			},
 			{
 				Label: "BTS Phromphong",
-				Text:  "bts-1",
+				Text:  "bts phromphong",
 			},
 		}
 		return Question{
@@ -235,18 +225,53 @@ func (record *ReservationRecord) QuestionToAsk() Question {
 
 func isLocation(reply Reply) bool {
 	// TODO: implement this
-	return true
+	if reply.Coords != [2]float64{0, 0} {
+		// TODO: probably check if coords are in service area
+		return true
+	}
+	// check for text if it's match
+	if IsThisIn(strings.ToLower(reply.Text), TargetPlaces) {
+		return true
+	}
+	return false
 }
 
-func isTime(reply Reply) (time.Time, bool) {
-	// TODO: implement this
-	return time.Now(), true
+func isTime(reply Reply) (*time.Time, bool) {
+	if reply.Datetime.Format("2006-01-02") != "0001-01-01" {
+		return &reply.Datetime, true
+	}
+	lowercase := strings.ToLower(reply.Text)
+	now := time.Now()
+	if lowercase == "now" {
+		return &now, true
+	}
+	pattern := regexp.MustCompile(`\+(\d+)(min|hour)`)
+	res := pattern.FindAllStringSubmatch(lowercase, -1)
+	if len(res) == 0 {
+		return nil, false
+	}
+	unit := res[0][2]
+	if unit != "min" && unit != "hour" {
+		return nil, false
+	}
+	num, err := strconv.Atoi(res[0][1])
+	if err != nil {
+		return nil, false
+	}
+	var t time.Time
+	duration := time.Duration(num)
+	if unit == "min" {
+		t = now.Add(duration * time.Minute)
+	} else if unit == "hour" {
+		t = now.Add(duration * time.Hour)
+	}
+	return &t, true
 }
 
 // ProcessReservationStep will handle every step of reservation
 func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*ReservationRecord, error) {
 
-	rec, err := app.FindRecord(userID)
+	rec, err := app.FindOrCreateRecord(userID)
 	if err != nil {
 		return nil, errors.New("There is a problem")
 	}
@@ -256,7 +281,11 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 		if !isLocation(reply) {
 			return nil, errors.New("No location")
 		}
-		rec.From = reply.Text
+		if reply.Coords != [2]float64{0, 0} {
+			rec.From = fmt.Sprintf("%v", reply.Coords)
+		} else {
+			rec.From = reply.Text
+		}
 	case "to":
 		if !isLocation(reply) {
 			return nil, errors.New("No location")
@@ -265,21 +294,12 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 	case "when":
 		tm, good := isTime(reply)
 		if !good {
-			return nil, errors.New("Not date ")
+			return nil, errors.New("Not date")
 		}
-		rec.ReservedAt = tm
+		rec.ReservedAt = *tm
 	default:
-		rec.State = "init"
-		rec.Waiting = rec.WhatsNext()
-		buff, _ := json.Marshal(&rec)
-		if err := app.rdb.Set(userID, buff, 5*time.Minute).Err(); err != nil {
-			log.Fatal(err)
-			return nil, err
-		}
 		return nil, errors.New("Wrong state")
 	}
-	// fmt.Println("here : ", rec)
-
 	rec.State = rec.Waiting
 	rec.Waiting = rec.WhatsNext()
 	buff, _ := json.Marshal(&rec)
