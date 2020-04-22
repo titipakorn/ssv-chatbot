@@ -45,14 +45,14 @@ func (app *HailingApp) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, event := range events {
-		fmt.Print(event)
+		log.Println("[Callback] ", event)
 		switch event.Type {
 		case linebot.EventTypeMessage:
 			app.extractReplyFromMessage(event)
 		case linebot.EventTypePostback:
 			app.extractReplyFromPostback(event)
 		default:
-			log.Printf("Unknown event: %v", event)
+			log.Printf("[Callback] Unknown event: %v\n", event)
 		}
 	}
 }
@@ -62,26 +62,34 @@ func (app *HailingApp) extractReplyFromPostback(event *linebot.Event) error {
 
 	data := event.Postback.Data
 	userID := event.Source.UserID
+	log.Printf("[PostbackExtractor] %v\n     %v", data, event.Postback)
 	var reply Reply
 	switch strings.ToLower(data) {
 	case "from":
+		msg := fmt.Sprintf("%v", event.Postback.Params)
+		reply = Reply{Text: msg}
 	case "to":
 		msg := fmt.Sprintf("%v", event.Postback.Params)
 		reply = Reply{Text: msg}
-	case "when":
-		layout := "2006-01-02T15:04:05.000Z"
+	case "datetime":
+		layout := "2006-01-02T15:04-07:00"
 		str := fmt.Sprintf("%v+07:00", event.Postback.Params.Datetime)
+		log.Printf("[PostbackExtractor] datetime: %v\n", event.Postback.Params)
 		t, err := time.Parse(layout, str)
 		if err != nil {
-			log.Print(err)
+			log.Println(err)
 		}
-		reply = Reply{Datetime: t}
+		reply = Reply{Text: "datetime", Datetime: t}
+		log.Printf("[PostbackExtractor] datetime result = %v\n", reply.Datetime.Format(time.RubyDate))
 	default:
-		if err := app.replyText(event.ReplyToken, "Got postback: "+data); err != nil {
-			log.Print(err)
+		log.Printf("[PostbackExtractor] unhandled case\n")
+		msg := fmt.Sprintf("Got postback: %v", data)
+		if err := app.replyText(event.ReplyToken, msg); err != nil {
+			log.Println(err)
 		}
 	}
 
+	log.Printf("[PostbackExtractor] reply: %v\n", reply)
 	if err := app.handleNextStep(event.ReplyToken, userID, reply); err != nil {
 		return err
 	}
@@ -107,7 +115,7 @@ func (app *HailingApp) extractReplyFromMessage(event *linebot.Event) error {
 		log.Printf("Unknown message: %v", message)
 		txt := fmt.Sprintf("Got message: %v", event.Message)
 		if err := app.replyText(event.ReplyToken, txt); err != nil {
-			log.Print(err)
+			log.Println(err)
 		}
 	}
 	if err := app.handleNextStep(event.ReplyToken, userID, reply); err != nil {
@@ -117,16 +125,56 @@ func (app *HailingApp) extractReplyFromMessage(event *linebot.Event) error {
 }
 
 func (app *HailingApp) handleNextStep(replyToken string, userID string, reply Reply) error {
-	record, err := app.ProcessReservationStep(userID, reply)
-	if err != nil {
-		return err
+	var record *ReservationRecord
+	var err error
+	if IsThisIn(reply.Text, WordsToCancel) {
+		total, err := app.Cancel(userID)
+		if err != nil {
+			return err
+		}
+		msg := fmt.Sprintf("Your reservation cancelled [%v]", total)
+		if _, err := app.bot.ReplyMessage(
+			replyToken,
+			linebot.NewTextMessage(msg),
+		).Do(); err != nil {
+			return err
+		}
+	} else if IsThisIn(reply.Text, WordsToAskForStatus) {
+		record, err = app.FindOrCreateRecord(userID)
+		if err != nil {
+			return err
+		}
+		msg := fmt.Sprintf("Your reservation detail is here [%v]", record)
+		if _, err := app.bot.ReplyMessage(
+			replyToken,
+			linebot.NewTextMessage(msg),
+		).Do(); err != nil {
+			return err
+		}
+	} else if IsThisIn(reply.Text, WordsToInit) { // initial state
+		record, err = app.FindOrCreateRecord(userID)
+		if err != nil {
+			return err
+		}
+	} else {
+		record, err = app.ProcessReservationStep(userID, reply)
+		if err != nil {
+			// this supposes to ask the same question again.
+			log.Printf("[handleNextStep] reply incorrectly: %v", err)
+			if _, err := app.bot.ReplyMessage(
+				replyToken,
+				linebot.NewTextMessage("Error, try again"),
+			).Do(); err != nil {
+				return err
+			}
+		}
 	}
 
 	question := record.QuestionToAsk()
 	if err := app.replyBack(replyToken, question); err != nil {
 		return err
 	}
-
+	log.Println("[handleNextStep] ", record)
 	return nil
 }
 
@@ -159,7 +207,7 @@ func (app *HailingApp) replyBack(replyToken string, question Question) error {
 	if question.DatetimeInput == true {
 		items[ind] = linebot.NewQuickReplyButton(
 			"",
-			linebot.NewDatetimePickerAction("datetime", "DATETIME", "datetime", "", "", ""))
+			linebot.NewDatetimePickerAction("Pick date & time", "DATETIME", "datetime", "", "", ""))
 	}
 	replyItems.Items = items
 
@@ -173,10 +221,10 @@ func (app *HailingApp) replyBack(replyToken string, question Question) error {
 	return nil
 }
 
-func (app *HailingApp) replyText(replyToken, text string) error {
+func (app *HailingApp) replyText(replyToken string, text ...string) error {
 	if _, err := app.bot.ReplyMessage(
 		replyToken,
-		linebot.NewTextMessage(text),
+		linebot.NewTextMessage(text[0]),
 	).Do(); err != nil {
 		return err
 	}

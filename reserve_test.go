@@ -41,7 +41,7 @@ func TestInitReserve(t *testing.T) {
 		t.Error("InitUser failed: ", err)
 	}
 
-	rec, err := app.FindRecord(userID)
+	rec, err := app.FindOrCreateRecord(userID)
 	if err != nil {
 		t.Error("App reservation failed: ", err)
 	}
