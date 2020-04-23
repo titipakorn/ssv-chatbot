@@ -75,6 +75,8 @@ func (record *ReservationRecord) WhatsNext() string {
 			return "to"
 		}
 		return "done"
+	case "done":
+		return "pickup"
 	default:
 		// check what's left unanswer
 		if record.To == "" {
@@ -314,13 +316,27 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 			return rec, errors.New("Not date")
 		}
 		rec.ReservedAt = *tm
+	case "pickup":
+		// 1st case is "modify-pickup-time"
+		if reply.Text == "modify-pickup-time" {
+			tm, good := isTime(reply)
+			if !good {
+				return rec, errors.New("Not date")
+			}
+			rec.ReservedAt = *tm
+		}
 	default:
 		return rec, errors.New("Wrong state")
 	}
 	rec.State = rec.Waiting
 	rec.Waiting = rec.WhatsNext()
 	buff, _ := json.Marshal(&rec)
-	if err := app.rdb.Set(userID, buff, 5*time.Minute).Err(); err != nil {
+	cacheDuration := 5 * time.Minute
+	if rec.State == "done" {
+		cacheDuration = 5 * time.Hour
+		// TODO: write to postgresql
+	}
+	if err := app.rdb.Set(userID, buff, cacheDuration).Err(); err != nil {
 		log.Fatal(err)
 		return nil, err
 	}
