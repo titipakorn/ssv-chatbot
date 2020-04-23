@@ -57,17 +57,34 @@ func (record *ReservationRecord) WhatsNext() string {
 		// TODO: checkout if drivers are all occupied or not. If so, pickup time first.
 		return "to"
 	case "to":
+		if record.To == "" {
+			return "to"
+		}
 		return "from"
 	case "from":
+		if record.From == "" {
+			return "from"
+		}
 		return "when"
 	case "when":
+		if record.ReservedAt.Format("2006-01-01") == "0001-01-01" {
+			return "when"
+		}
 		// there is a chance that when starts first if all drivers are occupied.
 		if record.To == "" {
 			return "to"
 		}
 		return "done"
 	default:
-		return "-"
+		// check what's left unanswer
+		if record.To == "" {
+			return "to"
+		} else if record.From == "" {
+			return "from"
+		} else if record.ReservedAt.Format("2006-01-01") == "0001-01-01" {
+			return "when"
+		}
+		return "done"
 	}
 }
 
@@ -181,15 +198,15 @@ func (record *ReservationRecord) QuestionToAsk() Question {
 		buttons := []QuickReplyButton{
 			{
 				Label: "Condo A",
-				Text:  "condo-a",
+				Text:  "Condo A",
 			},
 			{
 				Label: "CITI Resort",
-				Text:  "citi-resort",
+				Text:  "CITI Resort",
 			},
 			{
 				Label: "BTS Phromphong",
-				Text:  "bts phromphong",
+				Text:  "BTS Phromphong",
 			},
 		}
 		return Question{
@@ -201,15 +218,15 @@ func (record *ReservationRecord) QuestionToAsk() Question {
 		buttons := []QuickReplyButton{
 			{
 				Label: "Condo A",
-				Text:  "condo-a",
+				Text:  "Condo A",
 			},
 			{
 				Label: "CITI Resort",
-				Text:  "citi-resort",
+				Text:  "CITI Resort",
 			},
 			{
 				Label: "BTS Phromphong",
-				Text:  "bts-1",
+				Text:  "BTS Phromphong",
 			},
 		}
 		return Question{
@@ -279,7 +296,7 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 	switch rec.Waiting {
 	case "from":
 		if !isLocation(reply) {
-			return nil, errors.New("No location")
+			return rec, errors.New("No location")
 		}
 		if reply.Coords != [2]float64{0, 0} {
 			rec.From = fmt.Sprintf("%v", reply.Coords)
@@ -288,17 +305,17 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 		}
 	case "to":
 		if !isLocation(reply) {
-			return nil, errors.New("No location")
+			return rec, errors.New("No location")
 		}
 		rec.To = reply.Text
 	case "when":
 		tm, good := isTime(reply)
 		if !good {
-			return nil, errors.New("Not date")
+			return rec, errors.New("Not date")
 		}
 		rec.ReservedAt = *tm
 	default:
-		return nil, errors.New("Wrong state")
+		return rec, errors.New("Wrong state")
 	}
 	rec.State = rec.Waiting
 	rec.Waiting = rec.WhatsNext()

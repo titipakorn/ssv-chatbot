@@ -127,6 +127,8 @@ func (app *HailingApp) extractReplyFromMessage(event *linebot.Event) error {
 func (app *HailingApp) handleNextStep(replyToken string, userID string, reply Reply) error {
 	var record *ReservationRecord
 	var err error
+	msgs := []string{"", ""}
+
 	if IsThisIn(reply.Text, WordsToCancel) {
 		total, err := app.Cancel(userID)
 		if err != nil {
@@ -139,19 +141,26 @@ func (app *HailingApp) handleNextStep(replyToken string, userID string, reply Re
 		).Do(); err != nil {
 			return err
 		}
-	} else if IsThisIn(reply.Text, WordsToAskForStatus) {
+		return nil
+	}
+
+	if IsThisIn(reply.Text, WordsToAskForStatus) {
 		record, err = app.FindOrCreateRecord(userID)
 		if err != nil {
 			return err
 		}
 		msg := fmt.Sprintf("Your reservation detail is here [%v]", record)
+		// TODO: reply this reservation summary in flex json format.
 		if _, err := app.bot.ReplyMessage(
 			replyToken,
 			linebot.NewTextMessage(msg),
 		).Do(); err != nil {
 			return err
 		}
-	} else if IsThisIn(reply.Text, WordsToInit) { // initial state
+		return nil
+	}
+
+	if IsThisIn(reply.Text, WordsToInit) { // initial state
 		record, err = app.FindOrCreateRecord(userID)
 		if err != nil {
 			return err
@@ -161,24 +170,19 @@ func (app *HailingApp) handleNextStep(replyToken string, userID string, reply Re
 		if err != nil {
 			// this supposes to ask the same question again.
 			log.Printf("[handleNextStep] reply incorrectly: %v", err)
-			if _, err := app.bot.ReplyMessage(
-				replyToken,
-				linebot.NewTextMessage("Error, try again"),
-			).Do(); err != nil {
-				return err
-			}
+			msgs[0] = "Error, try again"
 		}
 	}
 
 	question := record.QuestionToAsk()
-	if err := app.replyBack(replyToken, question); err != nil {
+	if err := app.replyBack(replyToken, question, msgs...); err != nil {
 		return err
 	}
 	log.Println("[handleNextStep] ", record)
 	return nil
 }
 
-func (app *HailingApp) replyBack(replyToken string, question Question) error {
+func (app *HailingApp) replyBack(replyToken string, question Question, messages ...string) error {
 	replyItems := linebot.NewQuickReplyItems()
 	itemTotal := len(question.Buttons)
 	if question.LocationInput {
@@ -210,11 +214,18 @@ func (app *HailingApp) replyBack(replyToken string, question Question) error {
 			linebot.NewDatetimePickerAction("Pick date & time", "DATETIME", "datetime", "", "", ""))
 	}
 	replyItems.Items = items
+	sendingMsgs := []linebot.SendingMessage{}
+	for i := 0; i < len(messages); i++ {
+		if messages[i] != "" {
+			sendingMsgs = append(sendingMsgs, linebot.NewTextMessage(messages[i]))
+		}
+	}
+	// ask question
+	sendingMsgs = append(sendingMsgs, linebot.NewTextMessage(question.Text).WithQuickReplies(replyItems))
 
 	if _, err := app.bot.ReplyMessage(
 		replyToken,
-		linebot.NewTextMessage(question.Text).
-			WithQuickReplies(replyItems),
+		sendingMsgs...,
 	).Do(); err != nil {
 		return err
 	}
@@ -222,9 +233,23 @@ func (app *HailingApp) replyBack(replyToken string, question Question) error {
 }
 
 func (app *HailingApp) replyText(replyToken string, text ...string) error {
+	msgs := make([]linebot.SendingMessage, len(text))
+	for i := 0; i < len(text); i++ {
+		msgs[i] = linebot.NewTextMessage(text[i])
+	}
 	if _, err := app.bot.ReplyMessage(
 		replyToken,
-		linebot.NewTextMessage(text[0]),
+		msgs...,
+	).Do(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (app *HailingApp) replyMessage(replyToken string, messages ...linebot.SendingMessage) error {
+	if _, err := app.bot.ReplyMessage(
+		replyToken,
+		messages...,
 	).Do(); err != nil {
 		return err
 	}
