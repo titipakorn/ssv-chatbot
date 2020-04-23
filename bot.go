@@ -65,12 +65,24 @@ func (app *HailingApp) extractReplyFromPostback(event *linebot.Event) error {
 	log.Printf("[PostbackExtractor] %v\n     %v", data, event.Postback)
 	var reply Reply
 	switch strings.ToLower(data) {
+	case "cancel":
+		reply = Reply{Text: "cancel"}
 	case "from":
 		msg := fmt.Sprintf("%v", event.Postback.Params)
 		reply = Reply{Text: msg}
 	case "to":
 		msg := fmt.Sprintf("%v", event.Postback.Params)
 		reply = Reply{Text: msg}
+	case "datetime-change":
+		// TODO: implement this --> change time after it's already done
+		layout := "2006-01-02T15:04-07:00"
+		str := fmt.Sprintf("%v+07:00", event.Postback.Params.Datetime)
+		log.Printf("[PostbackExtractor] datetime: %v\n", event.Postback.Params)
+		t, err := time.Parse(layout, str)
+		if err != nil {
+			log.Println(err)
+		}
+		reply = Reply{Text: "modify-pickup-time", Datetime: t}
 	case "datetime":
 		layout := "2006-01-02T15:04-07:00"
 		str := fmt.Sprintf("%v+07:00", event.Postback.Params.Datetime)
@@ -129,6 +141,16 @@ func (app *HailingApp) handleNextStep(replyToken string, userID string, reply Re
 	var err error
 	msgs := []string{"", ""}
 
+	if reply.Text == "modify-pickup-time" {
+		// TODO: deal with this case -- which I am not sure how yet.
+		record, err = app.ProcessReservationStep(userID, reply)
+		if err != nil {
+			// this supposes to ask the same question again.
+			log.Printf("[handleNextStep] reply incorrectly: %v", err)
+			msgs[0] = "Error, try again"
+		}
+	}
+
 	if IsThisIn(reply.Text, WordsToCancel) {
 		total, err := app.Cancel(userID)
 		if err != nil {
@@ -149,11 +171,10 @@ func (app *HailingApp) handleNextStep(replyToken string, userID string, reply Re
 		if err != nil {
 			return err
 		}
-		msg := fmt.Sprintf("Your reservation detail is here [%v]", record)
-		// TODO: reply this reservation summary in flex json format.
+		// msg := fmt.Sprintf("Your reservation detail is here [%v]", record)
 		if _, err := app.bot.ReplyMessage(
 			replyToken,
-			linebot.NewTextMessage(msg),
+			record.RecordConfirmFlex(),
 		).Do(); err != nil {
 			return err
 		}
@@ -254,4 +275,126 @@ func (app *HailingApp) replyMessage(replyToken string, messages ...linebot.Sendi
 		return err
 	}
 	return nil
+}
+
+// RecordConfirmFlex to return information in form of FLEX
+func (record *ReservationRecord) RecordConfirmFlex() linebot.SendingMessage {
+	flexLabel := 2
+	flexDesc := 8
+	flexBtnLeft := 3
+	flexBtnRight := 6
+	contents := &linebot.BubbleContainer{
+		Type: linebot.FlexContainerTypeBubble,
+		Body: &linebot.BoxComponent{
+			Type:   linebot.FlexComponentTypeBox,
+			Layout: linebot.FlexBoxLayoutTypeVertical,
+			Contents: []linebot.FlexComponent{
+				&linebot.TextComponent{
+					Type:   linebot.FlexComponentTypeText,
+					Text:   "Ride confirmation",
+					Weight: linebot.FlexTextWeightTypeBold,
+					Size:   linebot.FlexTextSizeTypeXl,
+				},
+				&linebot.BoxComponent{
+					Type:    linebot.FlexComponentTypeBox,
+					Layout:  linebot.FlexBoxLayoutTypeBaseline,
+					Spacing: linebot.FlexComponentSpacingTypeXs,
+					Margin:  linebot.FlexComponentMarginTypeXl,
+					Contents: []linebot.FlexComponent{
+						&linebot.TextComponent{
+							Type:   linebot.FlexComponentTypeText,
+							Text:   "Pickup",
+							Weight: linebot.FlexTextWeightTypeRegular,
+							Flex:   &flexLabel,
+							Size:   linebot.FlexTextSizeTypeSm,
+						},
+						&linebot.TextComponent{
+							Type:   linebot.FlexComponentTypeText,
+							Text:   record.From,
+							Weight: linebot.FlexTextWeightTypeRegular,
+							Flex:   &flexDesc,
+							Size:   linebot.FlexTextSizeTypeSm,
+						},
+					},
+				},
+				&linebot.BoxComponent{
+					Type:    linebot.FlexComponentTypeBox,
+					Layout:  linebot.FlexBoxLayoutTypeBaseline,
+					Spacing: linebot.FlexComponentSpacingTypeXs,
+					Margin:  linebot.FlexComponentMarginTypeXl,
+					Contents: []linebot.FlexComponent{
+						&linebot.TextComponent{
+							Type:   linebot.FlexComponentTypeText,
+							Text:   "To",
+							Weight: linebot.FlexTextWeightTypeRegular,
+							Flex:   &flexLabel,
+							Size:   linebot.FlexTextSizeTypeSm,
+						},
+						&linebot.TextComponent{
+							Type:   linebot.FlexComponentTypeText,
+							Text:   record.To,
+							Weight: linebot.FlexTextWeightTypeRegular,
+							Flex:   &flexDesc,
+							Size:   linebot.FlexTextSizeTypeSm,
+						},
+					},
+				},
+				&linebot.BoxComponent{
+					Type:    linebot.FlexComponentTypeBox,
+					Layout:  linebot.FlexBoxLayoutTypeBaseline,
+					Spacing: linebot.FlexComponentSpacingTypeXs,
+					Margin:  linebot.FlexComponentMarginTypeXl,
+					Contents: []linebot.FlexComponent{
+						&linebot.TextComponent{
+							Type:   linebot.FlexComponentTypeText,
+							Text:   "Time",
+							Weight: linebot.FlexTextWeightTypeRegular,
+							Flex:   &flexLabel,
+							Size:   linebot.FlexTextSizeTypeSm,
+						},
+						&linebot.TextComponent{
+							Type:   linebot.FlexComponentTypeText,
+							Text:   record.ReservedAt.Format(time.Kitchen),
+							Weight: linebot.FlexTextWeightTypeRegular,
+							Flex:   &flexDesc,
+							Size:   linebot.FlexTextSizeTypeSm,
+						},
+					},
+				},
+			},
+		},
+		Footer: &linebot.BoxComponent{
+			Type:   linebot.FlexComponentTypeBox,
+			Layout: linebot.FlexBoxLayoutTypeVertical,
+			Contents: []linebot.FlexComponent{
+				&linebot.ButtonComponent{
+					Height: linebot.FlexButtonHeightTypeMd,
+					Style:  linebot.FlexButtonStyleTypeLink,
+					Action: linebot.NewPostbackAction("Call driver", "call", "", ""),
+				},
+
+				&linebot.BoxComponent{
+					Type:   linebot.FlexComponentTypeBox,
+					Layout: linebot.FlexBoxLayoutTypeHorizontal,
+					Contents: []linebot.FlexComponent{
+						&linebot.ButtonComponent{
+							Height: linebot.FlexButtonHeightTypeMd,
+							Style:  linebot.FlexButtonStyleTypeSecondary,
+							Flex:   &flexBtnLeft,
+							Action: linebot.NewPostbackAction("Cancel", "cancel", "", ""),
+						},
+						&linebot.ButtonComponent{
+							Height: linebot.FlexButtonHeightTypeMd,
+							Style:  linebot.FlexButtonStyleTypePrimary,
+							Flex:   &flexBtnRight,
+							Action: linebot.NewDatetimePickerAction(
+								"Change pickup time", "datetime-change", "datetime",
+								"", "", ""),
+						},
+					},
+				},
+			},
+		},
+	}
+	return linebot.NewFlexMessage("Ride confirmation", contents)
 }
