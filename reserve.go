@@ -51,6 +51,12 @@ type Question struct {
 
 // WhatsNext : to ask what should be the next step
 func (record *ReservationRecord) WhatsNext() string {
+
+	done, missing := record.IsComplete()
+	if done == true {
+		record.State = "done"
+	}
+
 	// all states are init, from, to, when
 	switch record.State {
 	case "init":
@@ -60,12 +66,10 @@ func (record *ReservationRecord) WhatsNext() string {
 		if record.To == "" {
 			return "to"
 		}
-		return "from"
 	case "from":
 		if record.From == "" {
 			return "from"
 		}
-		return "when"
 	case "when":
 		if record.ReservedAt.Format("2006-01-01") == "0001-01-01" {
 			return "when"
@@ -74,20 +78,10 @@ func (record *ReservationRecord) WhatsNext() string {
 		if record.To == "" {
 			return "to"
 		}
-		return "done"
 	case "done":
 		return "pickup"
-	default:
-		// check what's left unanswer
-		if record.To == "" {
-			return "to"
-		} else if record.From == "" {
-			return "from"
-		} else if record.ReservedAt.Format("2006-01-01") == "0001-01-01" {
-			return "when"
-		}
-		return "done"
 	}
+	return missing
 }
 
 // Cancel : to cancel this reservation
@@ -132,6 +126,21 @@ func (app *HailingApp) DoneAndSave(userID string) (int, error) {
 		return -1, errors.New("Something is wrong [ERR: R76]")
 	}
 	return app.SaveRecordToPostgreSQL(&rec)
+}
+
+// IsComplete is a shorthand to check if record is filled
+// return IsComplete & missing state
+func (record *ReservationRecord) IsComplete() (bool, string) {
+	if record.To == "" {
+		return false, "to"
+	}
+	if record.From == "" {
+		return false, "from"
+	}
+	if record.ReservedAt.Format("2006-01-01") == "0001-01-01" {
+		return false, "when"
+	}
+	return true, ""
 }
 
 // SaveRecordToPostgreSQL is to record this completed reservation to a permanent medium (postgresl)
@@ -364,13 +373,13 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 
 	rec.State = rec.Waiting
 	rec.Waiting = rec.WhatsNext()
-	buff, _ := json.Marshal(&rec)
 	cacheDuration := 5 * time.Minute
 	if rec.State == "done" {
 		cacheDuration = 24 * time.Hour
 		// TODO: write to postgresql
 		app.SaveRecordToPostgreSQL(rec)
 	}
+	buff, _ := json.Marshal(&rec)
 	log.Printf("[ProcessReservationStep] post_status_change: %s \n   >> record: %v", rec.State, rec)
 
 	if err := app.rdb.Set(userID, buff, cacheDuration).Err(); err != nil {
