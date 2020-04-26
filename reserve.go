@@ -140,7 +140,7 @@ func (record *ReservationRecord) IsComplete() (bool, string) {
 	if record.ReservedAt.Format("2006-01-01") == "0001-01-01" {
 		return false, "when"
 	}
-	return true, ""
+	return true, "done"
 }
 
 // SaveRecordToPostgreSQL is to record this completed reservation to a permanent medium (postgresl)
@@ -151,6 +151,7 @@ func (app *HailingApp) SaveRecordToPostgreSQL(rec *ReservationRecord) (int, erro
 	VALUES($1, $2, $3, $4) RETURNING id
 	`, rec.UserID, rec.From, rec.To, rec.ReservedAt).Scan(&tripID)
 	if err != nil {
+		log.Fatalf("[save2psql] %v", err)
 		return -1, err
 	}
 	return tripID, nil
@@ -283,33 +284,35 @@ func isLocation(reply Reply) bool {
 }
 
 func isTime(reply Reply) (*time.Time, error) {
-	if reply.Datetime.Format("2006-01-02") != "0001-01-01" {
-		return &reply.Datetime, nil
-	}
-	lowercase := strings.ToLower(reply.Text)
-	now := time.Now()
-	if lowercase == "now" {
-		return &now, nil
-	}
-	pattern := regexp.MustCompile(`\+(\d+)(min|hour)`)
-	res := pattern.FindAllStringSubmatch(lowercase, -1)
-	if len(res) == 0 {
-		return nil, errors.New("Not date")
-	}
-	unit := res[0][2]
-	if unit != "min" && unit != "hour" {
-		return nil, errors.New("Not date")
-	}
-	num, err := strconv.Atoi(res[0][1])
-	if err != nil {
-		return nil, errors.New("Not date")
-	}
 	var t time.Time
-	duration := time.Duration(num)
-	if unit == "min" {
-		t = now.Add(duration * time.Minute)
-	} else if unit == "hour" {
-		t = now.Add(duration * time.Hour)
+	now := time.Now()
+
+	if reply.Datetime.Format("2006-01-02") != "0001-01-01" {
+		t = reply.Datetime
+	} else {
+		lowercase := strings.ToLower(reply.Text)
+		if lowercase == "now" {
+			return &now, nil
+		}
+		pattern := regexp.MustCompile(`\+(\d+)(min|hour)`)
+		res := pattern.FindAllStringSubmatch(lowercase, -1)
+		if len(res) == 0 {
+			return nil, errors.New("Not date")
+		}
+		unit := res[0][2]
+		if unit != "min" && unit != "hour" {
+			return nil, errors.New("Not date")
+		}
+		num, err := strconv.Atoi(res[0][1])
+		if err != nil {
+			return nil, errors.New("Not date")
+		}
+		duration := time.Duration(num)
+		if unit == "min" {
+			t = now.Add(duration * time.Minute)
+		} else if unit == "hour" {
+			t = now.Add(duration * time.Hour)
+		}
 	}
 	diffFromNow := t.Sub(now)
 	if diffFromNow.Minutes() < 0 {
@@ -345,7 +348,11 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 		if !isLocation(reply) {
 			return rec, errors.New("No location")
 		}
-		rec.To = reply.Text
+		if reply.Coords != [2]float64{0, 0} {
+			rec.To = fmt.Sprintf("%v", reply.Coords)
+		} else {
+			rec.To = reply.Text
+		}
 	case "when":
 		tm, err := isTime(reply)
 		if err != nil {
@@ -373,6 +380,7 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 	rec.State = rec.Waiting
 	rec.Waiting = rec.WhatsNext()
 	cacheDuration := 5 * time.Minute
+	log.Printf("[ProcessReservationStep] mid_status_change: %s \n   >> record: %v", rec.State, rec)
 	if rec.State == "done" {
 		cacheDuration = 24 * time.Hour
 		// TODO: write to postgresql
