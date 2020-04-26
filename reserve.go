@@ -119,7 +119,7 @@ func (app *HailingApp) NextStep(userID string) (*ReservationRecord, string) {
 	return rec, nextStep
 }
 
-// DoneAndSave is to record this completed reservation to a permanent medium (postgresl) instead of Redis
+// DoneAndSave is to record this completed reservation to a permanent medium (postgresl)
 func (app *HailingApp) DoneAndSave(userID string) (int, error) {
 	// Double check
 	result, err := app.rdb.Get(userID).Result()
@@ -128,11 +128,16 @@ func (app *HailingApp) DoneAndSave(userID string) (int, error) {
 	}
 	var rec ReservationRecord
 	json.Unmarshal([]byte(result), &rec)
-	if rec.From == "" || rec.To == "" || rec.ReservedAt.String() == "0001-01-01 00:00:00 +0000" {
+	if rec.From == "" || rec.To == "" || rec.ReservedAt.Format("2006-01-01") == "0001-01-01" {
 		return -1, errors.New("Something is wrong [ERR: R76]")
 	}
+	return app.SaveRecordToPostgreSQL(&rec)
+}
+
+// SaveRecordToPostgreSQL is to record this completed reservation to a permanent medium (postgresl)
+func (app *HailingApp) SaveRecordToPostgreSQL(rec *ReservationRecord) (int, error) {
 	var tripID int
-	err = app.pdb.QueryRow(`
+	err := app.pdb.QueryRow(`
 	INSERT INTO trip("user_id", "from", "to", "reserved_at")
 	VALUES($1, $2, $3, $4) RETURNING id
 	`, rec.UserID, rec.From, rec.To, rec.ReservedAt).Scan(&tripID)
@@ -140,6 +145,19 @@ func (app *HailingApp) DoneAndSave(userID string) (int, error) {
 		return -1, err
 	}
 	return tripID, nil
+}
+
+// FindRecord : this is the one to ask if we have any reservation
+func (app *HailingApp) FindRecord(userID string) (*ReservationRecord, error) {
+	result, err := app.rdb.Get(userID).Result()
+	if err == redis.Nil {
+		return nil, errors.New("No record found")
+	} else if err != nil {
+		return nil, errors.New("There is a problem")
+	}
+	var rec ReservationRecord
+	json.Unmarshal([]byte(result), &rec)
+	return &rec, nil
 }
 
 // FindOrCreateRecord : this is the one to start everything
@@ -313,9 +331,23 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 	case "when":
 		tm, good := isTime(reply)
 		if !good {
+			log.Printf("[ProcessReservationStep] when [0]: %v %v \n", tm, good)
 			return rec, errors.New("Not date")
 		}
+		now := time.Now()
+		duration := tm.Sub(now)
+		if duration.Minutes() < 0 {
+			log.Printf("[ProcessReservationStep] when [1]-duration %v \n", duration)
+			return rec, errors.New("Time is in the past")
+		}
+		if duration.Hours() > 24 {
+			log.Printf("[ProcessReservationStep] when [2]: %v %v \n", tm, good)
+			return rec, errors.New("Only allow 24-hr in advance")
+		}
+		log.Printf("[ProcessReservationStep] when passed:\n")
 		rec.ReservedAt = *tm
+	case "done":
+		// nothing to save here save record to postgres
 	case "pickup":
 		// 1st case is "modify-pickup-time"
 		if reply.Text == "modify-pickup-time" {
@@ -328,14 +360,19 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 	default:
 		return rec, errors.New("Wrong state")
 	}
+	log.Printf("[ProcessReservationStep] pre_status_change: %s \n   >> record: %v", rec.State, rec)
+
 	rec.State = rec.Waiting
 	rec.Waiting = rec.WhatsNext()
 	buff, _ := json.Marshal(&rec)
 	cacheDuration := 5 * time.Minute
 	if rec.State == "done" {
-		cacheDuration = 5 * time.Hour
+		cacheDuration = 24 * time.Hour
 		// TODO: write to postgresql
+		app.SaveRecordToPostgreSQL(rec)
 	}
+	log.Printf("[ProcessReservationStep] post_status_change: %s \n   >> record: %v", rec.State, rec)
+
 	if err := app.rdb.Set(userID, buff, cacheDuration).Err(); err != nil {
 		log.Fatal(err)
 		return nil, err

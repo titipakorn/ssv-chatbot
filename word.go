@@ -3,7 +3,7 @@ package main
 import "strings"
 
 // WordsToInit is an array of eligible words for init reservation process
-var WordsToInit = []string{"call the cab", "i need a ride", "ride now", "reserve ride", "แท็กซี่"}
+var WordsToInit = []string{"call the cab", "i need a ride", "ride now", "reserve ride", "init", "แท็กซี่"}
 
 // WordsToCancel is an array of eligible words for cancel reservation
 var WordsToCancel = []string{"!reset", "reset", "cancel", "ยกเลิก"}
