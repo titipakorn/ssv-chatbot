@@ -65,6 +65,9 @@ func (app *HailingApp) extractReplyFromPostback(event *linebot.Event) error {
 	log.Printf("[PostbackExtractor] %v\n     %v", data, event.Postback)
 	var reply Reply
 	switch strings.ToLower(data) {
+	case "init":
+		// NOTE: this should go to handleNextStep automatically
+		reply = Reply{Text: "call the cab"}
 	case "cancel":
 		reply = Reply{Text: "cancel"}
 	case "from":
@@ -167,10 +170,22 @@ func (app *HailingApp) handleNextStep(replyToken string, userID string, reply Re
 	}
 
 	if IsThisIn(reply.Text, WordsToAskForStatus) {
-		record, err = app.FindOrCreateRecord(userID)
+		record, err = app.FindRecord(userID)
 		if err != nil {
-			return err
+			// tell user first:
+			// (1) what is wrong
+			// (2) wanna start reservation record?
+			errMsg := fmt.Sprintf("%v", err)
+			if _, err := app.bot.ReplyMessage(
+				replyToken,
+				linebot.NewTextMessage(errMsg),
+				WannaStart(),
+			).Do(); err != nil {
+				return err
+			}
+			return nil
 		}
+		log.Printf("[handleNextStep] status query: %s \n   >> record: %v", record.State, record)
 		// msg := fmt.Sprintf("Your reservation detail is here [%v]", record)
 		if _, err := app.bot.ReplyMessage(
 			replyToken,
@@ -191,10 +206,23 @@ func (app *HailingApp) handleNextStep(replyToken string, userID string, reply Re
 		if err != nil {
 			// this supposes to ask the same question again.
 			log.Printf("[handleNextStep] reply incorrectly: %v", err)
-			msgs[0] = "Error, try again"
+			msgs[0] = fmt.Sprintf("Error, try again")
+			msgs[1] = fmt.Sprintf("%v", err)
 		}
 	}
 
+	log.Printf("[handleNextStep] %v\n   PrevReply = %v", record, reply)
+	if record.State == "done" {
+		// this need special care
+		if _, err := app.bot.ReplyMessage(
+			replyToken,
+			linebot.NewTextMessage("Your ride reservation is done."),
+			record.RecordConfirmFlex(),
+		).Do(); err != nil {
+			return err
+		}
+		return nil
+	}
 	question := record.QuestionToAsk()
 	if err := app.replyBack(replyToken, question, msgs...); err != nil {
 		return err
@@ -275,6 +303,43 @@ func (app *HailingApp) replyMessage(replyToken string, messages ...linebot.Sendi
 		return err
 	}
 	return nil
+}
+
+// WannaStart returns sendingMessage to ask if user want to start the process
+func WannaStart() linebot.SendingMessage {
+	contents := &linebot.BubbleContainer{
+		Type: linebot.FlexContainerTypeBubble,
+		Body: &linebot.BoxComponent{
+			Type:   linebot.FlexComponentTypeBox,
+			Layout: linebot.FlexBoxLayoutTypeVertical,
+			Contents: []linebot.FlexComponent{
+				&linebot.TextComponent{
+					Type:   linebot.FlexComponentTypeText,
+					Text:   "Need a ride now?",
+					Weight: linebot.FlexTextWeightTypeBold,
+					Size:   linebot.FlexTextSizeTypeXl,
+				},
+			},
+		},
+		Footer: &linebot.BoxComponent{
+			Type:   linebot.FlexComponentTypeBox,
+			Layout: linebot.FlexBoxLayoutTypeVertical,
+			Contents: []linebot.FlexComponent{
+				&linebot.BoxComponent{
+					Type:   linebot.FlexComponentTypeBox,
+					Layout: linebot.FlexBoxLayoutTypeVertical,
+					Contents: []linebot.FlexComponent{
+						&linebot.ButtonComponent{
+							Height: linebot.FlexButtonHeightTypeMd,
+							Style:  linebot.FlexButtonStyleTypePrimary,
+							Action: linebot.NewPostbackAction("Yes", "init", "", ""),
+						},
+					},
+				},
+			},
+		},
+	}
+	return linebot.NewFlexMessage("Start reservation", contents)
 }
 
 // RecordConfirmFlex to return information in form of FLEX
