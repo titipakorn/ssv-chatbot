@@ -53,7 +53,7 @@ type Question struct {
 func (record *ReservationRecord) WhatsNext() string {
 
 	done, missing := record.IsComplete()
-	if done == true {
+	if done {
 		record.State = "done"
 	}
 
@@ -282,27 +282,27 @@ func isLocation(reply Reply) bool {
 	return false
 }
 
-func isTime(reply Reply) (*time.Time, bool) {
+func isTime(reply Reply) (*time.Time, error) {
 	if reply.Datetime.Format("2006-01-02") != "0001-01-01" {
-		return &reply.Datetime, true
+		return &reply.Datetime, nil
 	}
 	lowercase := strings.ToLower(reply.Text)
 	now := time.Now()
 	if lowercase == "now" {
-		return &now, true
+		return &now, nil
 	}
 	pattern := regexp.MustCompile(`\+(\d+)(min|hour)`)
 	res := pattern.FindAllStringSubmatch(lowercase, -1)
 	if len(res) == 0 {
-		return nil, false
+		return nil, errors.New("Not date")
 	}
 	unit := res[0][2]
 	if unit != "min" && unit != "hour" {
-		return nil, false
+		return nil, errors.New("Not date")
 	}
 	num, err := strconv.Atoi(res[0][1])
 	if err != nil {
-		return nil, false
+		return nil, errors.New("Not date")
 	}
 	var t time.Time
 	duration := time.Duration(num)
@@ -311,7 +311,16 @@ func isTime(reply Reply) (*time.Time, bool) {
 	} else if unit == "hour" {
 		t = now.Add(duration * time.Hour)
 	}
-	return &t, true
+	diffFromNow := t.Sub(now)
+	if diffFromNow.Minutes() < 0 {
+		log.Printf("[isTime] %v \n", diffFromNow)
+		return &t, errors.New("Time is in the past")
+	}
+	if diffFromNow.Hours() > 24 {
+		log.Printf("[isTime] %v \n", diffFromNow)
+		return &t, errors.New("Only allow 24-hr in advance")
+	}
+	return &t, nil
 }
 
 // ProcessReservationStep will handle every step of reservation
@@ -338,20 +347,10 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 		}
 		rec.To = reply.Text
 	case "when":
-		tm, good := isTime(reply)
-		if !good {
-			log.Printf("[ProcessReservationStep] when [0]: %v %v \n", tm, good)
-			return rec, errors.New("Not date")
-		}
-		now := time.Now()
-		duration := tm.Sub(now)
-		if duration.Minutes() < 0 {
-			log.Printf("[ProcessReservationStep] when [1]-duration %v \n", duration)
-			return rec, errors.New("Time is in the past")
-		}
-		if duration.Hours() > 24 {
-			log.Printf("[ProcessReservationStep] when [2]: %v %v \n", tm, good)
-			return rec, errors.New("Only allow 24-hr in advance")
+		tm, err := isTime(reply)
+		if err != nil {
+			log.Printf("[ProcessReservationStep] when: %v %v \n", tm, err)
+			return rec, err
 		}
 		log.Printf("[ProcessReservationStep] when passed:\n")
 		rec.ReservedAt = *tm
@@ -360,9 +359,9 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 	case "pickup":
 		// 1st case is "modify-pickup-time"
 		if reply.Text == "modify-pickup-time" {
-			tm, good := isTime(reply)
-			if !good {
-				return rec, errors.New("Not date")
+			tm, err := isTime(reply)
+			if err != nil {
+				return rec, err
 			}
 			rec.ReservedAt = *tm
 		}
