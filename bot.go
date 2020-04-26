@@ -98,10 +98,12 @@ func (app *HailingApp) extractReplyFromPostback(event *linebot.Event) error {
 		log.Printf("[PostbackExtractor] datetime result = %v\n", reply.Datetime.Format(time.RubyDate))
 	default:
 		log.Printf("[PostbackExtractor] unhandled case\n")
-		msg := fmt.Sprintf("Got postback: %v", data)
-		if err := app.replyText(event.ReplyToken, msg); err != nil {
-			log.Println(err)
-		}
+		return app.UnhandledCase(event.ReplyToken)
+		// msg := fmt.Sprintf("Got postback: %v", data)
+		// msg := fmt.Sprintf("Hi there, ")
+		// if err := app.replyText(event.ReplyToken, msg); err != nil {
+		// 	log.Println(err)
+		// }
 	}
 
 	log.Printf("[PostbackExtractor] reply: %v\n", reply)
@@ -126,14 +128,35 @@ func (app *HailingApp) extractReplyFromMessage(event *linebot.Event) error {
 	case *linebot.StickerMessage:
 		sticker := event.Message.(*linebot.StickerMessage)
 		reply.Text = sticker.StickerID
+		return app.UnhandledCase(event.ReplyToken)
 	default:
 		log.Printf("Unknown message: %v", message)
-		txt := fmt.Sprintf("Got message: %v", event.Message)
-		if err := app.replyText(event.ReplyToken, txt); err != nil {
-			log.Println(err)
-		}
+		// txt := fmt.Sprintf("Got message: %v", event.Message)
+		// if err := app.replyText(event.ReplyToken, txt); err != nil {
+		// 	log.Println(err)
+		// }
+		return app.UnhandledCase(event.ReplyToken)
 	}
 	if err := app.handleNextStep(event.ReplyToken, userID, reply); err != nil {
+		return err
+	}
+	return nil
+}
+
+// UnhandledCase return greeting and some initial suggestion to the service
+func (app *HailingApp) UnhandledCase(replyToken string) error {
+	if _, err := app.bot.ReplyMessage(
+		replyToken,
+		linebot.NewTextMessage("Hi there, do you need a ride?"),
+		linebot.NewTextMessage("Try \"status\" to get started").WithQuickReplies(
+			linebot.NewQuickReplyItems(
+				linebot.NewQuickReplyButton(
+					app.appBaseURL+"/static/quick/pin.svg",
+					linebot.NewMessageAction("Help", "help"),
+				),
+			),
+		),
+	).Do(); err != nil {
 		return err
 	}
 	return nil
@@ -150,7 +173,15 @@ func (app *HailingApp) handleNextStep(replyToken string, userID string, reply Re
 		if err != nil {
 			// this supposes to ask the same question again.
 			log.Printf("[handleNextStep] reply incorrectly: %v", err)
-			msgs[0] = "Error, try again"
+			// TODO: since it's "done" state, we need to return Message here
+			if _, err := app.bot.ReplyMessage(
+				replyToken,
+				linebot.NewTextMessage("Error, nothing changed"),
+				linebot.NewTextMessage(fmt.Sprintf("%v", err)),
+			).Do(); err != nil {
+				return err
+			}
+			return nil
 		}
 	}
 
@@ -185,15 +216,22 @@ func (app *HailingApp) handleNextStep(replyToken string, userID string, reply Re
 			}
 			return nil
 		}
-		log.Printf("[handleNextStep] status query: %s \n   >> record: %v", record.State, record)
-		// msg := fmt.Sprintf("Your reservation detail is here [%v]", record)
-		if _, err := app.bot.ReplyMessage(
-			replyToken,
-			record.RecordConfirmFlex(),
-		).Do(); err != nil {
-			return err
+		// check if it's done or not
+		done, _ := record.IsComplete()
+		if done {
+			log.Printf("[handleNextStep] status query: %s \n   >> record: %v", record.State, record)
+			// msg := fmt.Sprintf("Your reservation detail is here [%v]", record)
+			if _, err := app.bot.ReplyMessage(
+				replyToken,
+				record.RecordConfirmFlex(),
+			).Do(); err != nil {
+				return err
+			}
+			return nil
 		}
-		return nil
+		// if it's not done, let this go through regular process
+		msgs[0] = "The reservation isn't completed yet."
+		return app.replyQuestion(replyToken, record, msgs...)
 	}
 
 	if IsThisIn(reply.Text, WordsToInit) { // initial state
@@ -202,6 +240,20 @@ func (app *HailingApp) handleNextStep(replyToken string, userID string, reply Re
 			return err
 		}
 	} else {
+		// TODO: we should have Find first if we find any record
+		// if found --> Process
+		// NOT --> Ask wanna start?
+		record, err = app.FindRecord(userID)
+		if err != nil {
+			if _, err := app.bot.ReplyMessage(
+				replyToken,
+				linebot.NewTextMessage(fmt.Sprintf("%v", err)),
+				WannaStart(),
+			).Do(); err != nil {
+				return err
+			}
+			return nil
+		}
 		record, err = app.ProcessReservationStep(userID, reply)
 		if err != nil {
 			// this supposes to ask the same question again.
@@ -223,6 +275,10 @@ func (app *HailingApp) handleNextStep(replyToken string, userID string, reply Re
 		}
 		return nil
 	}
+	return app.replyQuestion(replyToken, record, msgs...)
+}
+
+func (app *HailingApp) replyQuestion(replyToken string, record *ReservationRecord, msgs ...string) error {
 	question := record.QuestionToAsk()
 	if err := app.replyBack(replyToken, question, msgs...); err != nil {
 		return err
