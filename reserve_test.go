@@ -37,11 +37,12 @@ func TestInitReserve(t *testing.T) {
 	// clean up redis first
 	app.Cancel(userID)
 	// make sure that user existed in psql - user
-	if err := initUser(app.pdb, userID); err != nil {
-		t.Error("InitUser failed: ", err)
+	if err := cleanUp(app.pdb, userID); err != nil {
+		t.Error("Cleanup failed: ", err)
 	}
 
-	rec, err := app.FindOrCreateRecord(userID)
+	user, err := app.CreateUser(userID, userID, "dummy-profile")
+	rec, err := app.InitReservation(*user)
 	if err != nil {
 		t.Error("App reservation failed: ", err)
 	}
@@ -56,12 +57,11 @@ func TestInitReserve(t *testing.T) {
 	if step1 != "to" {
 		t.Errorf("[1] App state is not 'to' != %v", step1)
 	}
-
 	// user return answer correctly
 	step1reply := Reply{
-		Text: "BTS A",
+		Text: "BTS Phromphong",
 	}
-	rec, err = app.ProcessReservationStep(userID, step1reply)
+	rec, err = app.ProcessReservationStep(user.LineUserID, step1reply)
 	if err != nil {
 		t.Error("    processing failed: ", err)
 	}
@@ -71,7 +71,7 @@ func TestInitReserve(t *testing.T) {
 	}
 
 	// [2]
-	// rec, step2 := app.NextStep(userID)
+	// rec, step2 := app.NextStep(user.LineUserID)
 	step2 := rec.Waiting
 	if step2 != "from" {
 		t.Errorf("[2] App state is not 'from' != %v", step2)
@@ -81,7 +81,7 @@ func TestInitReserve(t *testing.T) {
 	step2reply := Reply{
 		Text: "CITI Resort",
 	}
-	rec, err = app.ProcessReservationStep(userID, step2reply)
+	rec, err = app.ProcessReservationStep(user.LineUserID, step2reply)
 	if err != nil {
 		t.Error("    processing failed: ", err)
 	}
@@ -91,7 +91,7 @@ func TestInitReserve(t *testing.T) {
 	}
 
 	// [3]
-	// rec, step3 := app.NextStep(userID)
+	// rec, step3 := app.NextStep(user.LineUserID)
 	step3 := rec.Waiting
 	if step3 != "when" {
 		t.Errorf("[3] App state is not 'when' != %v", step3)
@@ -101,23 +101,23 @@ func TestInitReserve(t *testing.T) {
 	step3reply := Reply{
 		Datetime: time.Now().Add(15 * time.Minute),
 	}
-	rec, err = app.ProcessReservationStep(userID, step3reply)
+	rec, err = app.ProcessReservationStep(user.LineUserID, step3reply)
 	if err != nil {
 		t.Error("    processing failed: ", err)
 	}
 	// now record initiailized. First question it is next.
-	if rec.State != "when" && rec.ReservedAt == step3reply.Datetime {
+	if rec.State != "done" && rec.ReservedAt == step3reply.Datetime {
 		t.Errorf("    variable is not correct != %v", rec)
 	}
 
 	// [4]
 	// lastStep := rec.WhatsNext()
-	lastStep := rec.Waiting
+	lastStep := rec.State
 	if lastStep != "done" {
 		t.Errorf("[4] App state is not 'done' != %v", lastStep)
 	}
 
-	tripID, err := app.DoneAndSave(userID)
+	tripID, err := app.DoneAndSave(user.LineUserID)
 	if err != nil {
 		t.Error("    processing failed: ", err)
 	}
@@ -151,19 +151,6 @@ func TestQuestionFromEachState(t *testing.T) {
 		t.Errorf("When? != %v", q3.Text)
 	}
 
-}
-
-func initUser(db *sql.DB, userID string) error {
-
-	cleanUp(db, userID)
-
-	_, err := db.Exec(`
-	INSERT INTO "user" (id, username)
-	VALUES ($1, $2)`, userID, "test_user")
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func cleanUp(db *sql.DB, userID string) error {

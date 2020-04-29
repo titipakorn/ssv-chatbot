@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v7"
+	"github.com/google/uuid"
 )
 
 // ReservationRecord : whole process record
@@ -19,12 +20,14 @@ type ReservationRecord struct {
 	Waiting    string    `json:"waiting"`
 	From       string    `json:"from"`
 	To         string    `json:"to"`
-	UserID     string    `json:"user_id"`
+	UserID     uuid.UUID `json:"user_id"` // this is our system id, not line's
+	LineUserID string    `json:"line_user_id"`
 	DriverID   string    `json:"driver_id"`
 	ReservedAt time.Time `json:"reserved_at"`
 	// PickedUpAt   time.Time `json:"picked_up_at"`
 	// DroppedOffAt time.Time `json:"dropped_off_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+	TripID    int       `json:"trip_id"` // postgresql id
 }
 
 // Reply : to store reply in various message type
@@ -86,7 +89,19 @@ func (record *ReservationRecord) WhatsNext() string {
 
 // Cancel : to cancel this reservation
 func (app *HailingApp) Cancel(userID string) (int64, error) {
+	rec, err := app.FindRecord(userID)
+	if err != nil {
+		return -1, err
+	}
 
+	if rec.TripID != -1 {
+		// TODO: dealing with postgres too
+		_, err := app.CancelReservation(rec)
+		if err != nil && !strings.Contains(err.Error(), "no rows in result set") {
+			return -1, err
+		}
+	}
+	// if there is no tripID yet, then continue with cancel process
 	n, err := app.rdb.Del(userID).Result()
 	if err != nil {
 		return -1, err
@@ -125,7 +140,7 @@ func (app *HailingApp) DoneAndSave(userID string) (int, error) {
 	if rec.From == "" || rec.To == "" || rec.ReservedAt.Format("2006-01-01") == "0001-01-01" {
 		return -1, errors.New("Something is wrong [ERR: R76]")
 	}
-	return app.SaveRecordToPostgreSQL(&rec)
+	return app.SaveReservationToPostgres(&rec)
 }
 
 // IsComplete is a shorthand to check if record is filled
@@ -143,20 +158,6 @@ func (record *ReservationRecord) IsComplete() (bool, string) {
 	return true, "done"
 }
 
-// SaveRecordToPostgreSQL is to record this completed reservation to a permanent medium (postgresl)
-func (app *HailingApp) SaveRecordToPostgreSQL(rec *ReservationRecord) (int, error) {
-	var tripID int
-	err := app.pdb.QueryRow(`
-	INSERT INTO trip("user_id", "from", "to", "reserved_at")
-	VALUES($1, $2, $3, $4) RETURNING id
-	`, rec.UserID, rec.From, rec.To, rec.ReservedAt).Scan(&tripID)
-	if err != nil {
-		log.Fatalf("[save2psql] %v", err)
-		return -1, err
-	}
-	return tripID, nil
-}
-
 // FindRecord : this is the one to ask if we have any reservation
 func (app *HailingApp) FindRecord(userID string) (*ReservationRecord, error) {
 	result, err := app.rdb.Get(userID).Result()
@@ -171,12 +172,12 @@ func (app *HailingApp) FindRecord(userID string) (*ReservationRecord, error) {
 }
 
 // FindOrCreateRecord : this is the one to start everything
-func (app *HailingApp) FindOrCreateRecord(userID string) (*ReservationRecord, error) {
-	// fmt.Println("Reserve: ", userID)
-	result, err := app.rdb.Get(userID).Result()
+func (app *HailingApp) FindOrCreateRecord(lineUserID string) (*ReservationRecord, error) {
+	// fmt.Println("Reserve: ", lineUserID)
+	result, err := app.rdb.Get(lineUserID).Result()
 	if err == redis.Nil {
 		log.Println("[FindOrCreateRecord] init new one")
-		return app.initReservation(userID)
+		return app.initReservation(lineUserID)
 	} else if err != nil {
 		return nil, errors.New("There is a problem")
 	}
@@ -185,15 +186,27 @@ func (app *HailingApp) FindOrCreateRecord(userID string) (*ReservationRecord, er
 	return &rec, nil
 }
 
-func (app *HailingApp) initReservation(userID string) (*ReservationRecord, error) {
+func (app *HailingApp) initReservation(lineUserID string) (*ReservationRecord, error) {
+	user, err := app.FindOrCreateUser(lineUserID)
+	if err != nil {
+		log.Fatal(err)
+		return nil, err
+	}
+	return app.InitReservation(*user)
+}
+
+// InitReservation is a function to start reservation by User record
+func (app *HailingApp) InitReservation(user User) (*ReservationRecord, error) {
 	newRecord := ReservationRecord{
-		UserID:  userID,
-		State:   "init",
-		Waiting: "to",
+		UserID:     user.ID,
+		LineUserID: user.LineUserID,
+		State:      "init",
+		Waiting:    "to",
+		TripID:     -1,
 	}
 
 	buff, _ := json.Marshal(&newRecord)
-	err := app.rdb.Set(userID, buff, 5*time.Minute).Err()
+	err := app.rdb.Set(user.LineUserID, buff, 5*time.Minute).Err()
 	if err != nil {
 		log.Fatal(err)
 		return nil, err
@@ -375,19 +388,23 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 	default:
 		return rec, errors.New("Wrong state")
 	}
-	log.Printf("[ProcessReservationStep] pre_status_change: %s \n   >> record: %v", rec.State, rec)
+	// log.Printf("[ProcessReservationStep] pre_status_change: %s \n   >> record: %v", rec.State, rec)
 
 	rec.State = rec.Waiting
 	rec.Waiting = rec.WhatsNext()
 	cacheDuration := 5 * time.Minute
-	log.Printf("[ProcessReservationStep] mid_status_change: %s \n   >> record: %v", rec.State, rec)
+	// log.Printf("[ProcessReservationStep] mid_status_change: %s \n   >> record: %v", rec.State, rec)
 	if rec.State == "done" {
 		cacheDuration = 24 * time.Hour
 		// TODO: write to postgresql
-		app.SaveRecordToPostgreSQL(rec)
+		tripID, err := app.SaveReservationToPostgres(rec)
+		if err != nil {
+			return rec, err
+		}
+		rec.TripID = tripID
 	}
 	buff, _ := json.Marshal(&rec)
-	log.Printf("[ProcessReservationStep] post_status_change: %s \n   >> record: %v", rec.State, rec)
+	// log.Printf("[ProcessReservationStep] post_status_change: %s \n   >> record: %v", rec.State, rec)
 
 	if err := app.rdb.Set(userID, buff, cacheDuration).Err(); err != nil {
 		log.Fatal(err)
