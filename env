@@ -5,4 +5,4 @@ export APP_BASE_URL=https://line-bot.10z.dev
 
 
 export REDIS_ADDR=127.0.0.1:6379
-export POSTGRES_URI=postgres://sipp11:banshee10@127.0.0.1/hailing
+export POSTGRES_URI=postgres://sipp11:banshee10@127.0.0.1:25432/hailing
