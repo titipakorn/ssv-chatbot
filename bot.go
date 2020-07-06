@@ -404,6 +404,8 @@ func (record *ReservationRecord) RecordConfirmFlex() linebot.SendingMessage {
 	flexDesc := 8
 	flexBtnLeft := 3
 	flexBtnRight := 6
+	bkk, _ := time.LoadLocation("Asia/Bangkok")
+	bkkReservedTime := record.ReservedAt.In(bkk)
 	contents := &linebot.BubbleContainer{
 		Type: linebot.FlexContainerTypeBubble,
 		Body: &linebot.BoxComponent{
@@ -475,7 +477,7 @@ func (record *ReservationRecord) RecordConfirmFlex() linebot.SendingMessage {
 						},
 						&linebot.TextComponent{
 							Type:   linebot.FlexComponentTypeText,
-							Text:   record.ReservedAt.Format(time.Kitchen),
+							Text:   bkkReservedTime.Format(time.Kitchen),
 							Weight: linebot.FlexTextWeightTypeRegular,
 							Flex:   &flexDesc,
 							Size:   linebot.FlexTextSizeTypeSm,
