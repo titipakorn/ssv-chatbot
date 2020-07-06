@@ -91,7 +91,7 @@ func (app *HailingApp) CreateUser(username string, lineUserID string, profileURL
 // SaveReservationToPostgres is to record this completed reservation to a permanent medium (postgresl)
 func (app *HailingApp) SaveReservationToPostgres(rec *ReservationRecord) (int, error) {
 	var tripID int
-
+	// TODO: add place_from, place_to here too.
 	if rec.TripID == -1 {
 		// insert if no trip_id yet
 		err := app.pdb.QueryRow(`
@@ -148,10 +148,23 @@ func (app *HailingApp) CancelReservation(rec *ReservationRecord) (string, error)
 		// cancel isn't possible now
 		return "failed", errors.New("Cancellation is not allowed at this point")
 	}
+	var tripID int
+	now := time.Now()
+	note := "User cancelled vi bot"
+	// update postgresql record
 	err = app.pdb.QueryRow(`
-		DELETE FROM "trip" WHERE id=$1`, rec.TripID).Scan()
-	if err != nil && !strings.Contains(err.Error(), "no rows in result set") {
+		UPDATE "trip" SET ("note", "cancelled_at") = ($2, $3)
+		WHERE id=$1
+		RETURNING id
+		`, rec.TripID, now, note).Scan(&tripID)
+	if err != nil {
+		log.Printf("[save2psql-cancel] %v", err)
 		return "failed", err
 	}
+	// err = app.pdb.QueryRow(`
+	// 	DELETE FROM "trip" WHERE id=$1`, rec.TripID).Scan()
+	// if err != nil && !strings.Contains(err.Error(), "no rows in result set") {
+	// 	return "failed", err
+	// }
 	return "success", nil
 }
