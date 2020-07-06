@@ -13,6 +13,7 @@ var WordsToAskForStatus = []string{"!status", "status"}
 
 // TargetPlaces is an array of eligible words for places in the service
 var TargetPlaces = []string{"condo a", "citi resort", "bts phromphong"}
+var TargetPlaceCoords = []string{"13.7349,100.5623", "13.7354784,100.5749098", "13.7304,100.5698"}
 
 // IsThisIn is an exactly "key in list"
 func IsThisIn(word string, groupsOfWords []string) bool {
