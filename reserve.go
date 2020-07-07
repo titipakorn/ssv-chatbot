@@ -129,9 +129,9 @@ func (app *HailingApp) NextStep(userID string) (*ReservationRecord, string) {
 }
 
 // DoneAndSave is to record this completed reservation to a permanent medium (postgresl)
-func (app *HailingApp) DoneAndSave(userID string) (int, error) {
+func (app *HailingApp) DoneAndSave(lineUserID string) (int, error) {
 	// Double check
-	result, err := app.rdb.Get(userID).Result()
+	result, err := app.rdb.Get(lineUserID).Result()
 	if err != nil {
 		return -1, errors.New("There is a problem")
 	}
@@ -159,8 +159,8 @@ func (record *ReservationRecord) IsComplete() (bool, string) {
 }
 
 // FindRecord : this is the one to ask if we have any reservation
-func (app *HailingApp) FindRecord(userID string) (*ReservationRecord, error) {
-	result, err := app.rdb.Get(userID).Result()
+func (app *HailingApp) FindRecord(lineUserID string) (*ReservationRecord, error) {
+	result, err := app.rdb.Get(lineUserID).Result()
 	if err == redis.Nil {
 		return nil, errors.New("No record found")
 	} else if err != nil {
@@ -188,12 +188,12 @@ func (app *HailingApp) FindOrCreateRecord(lineUserID string) (*ReservationRecord
 
 func (app *HailingApp) initReservation(lineUserID string) (*ReservationRecord, error) {
 	user, err := app.FindOrCreateUser(lineUserID)
-	log.Printf("[initReservation] lineID: %v\n", lineUserID)
+	// log.Printf("[initReservation] lineID: %v\n", lineUserID)
 	if err != nil {
 		log.Fatal(err)
 		return nil, err
 	}
-	log.Printf("[initReservation] ==> user: %v\n", user)
+	// log.Printf("[initReservation] ==> user: %v\n", user)
 	return app.InitReservation(*user)
 }
 
@@ -207,14 +207,14 @@ func (app *HailingApp) InitReservation(user User) (*ReservationRecord, error) {
 		TripID:     -1,
 	}
 
-	log.Printf("[InitReservation] ==> user: %v\n        n_record: %v\n", user, newRecord)
+	// log.Printf("[InitReservation] ==> user: %v\n        n_record: %v\n", user, newRecord)
 	buff, _ := json.Marshal(&newRecord)
 	err := app.rdb.Set(user.LineUserID, buff, 5*time.Minute).Err()
 	if err != nil {
 		log.Fatal(err)
 		return nil, err
 	}
-	log.Printf("[InitReservation] ==> set in redis\n")
+	// log.Printf("[InitReservation] ==> set in redis\n")
 	return &newRecord, nil
 }
 
@@ -333,11 +333,11 @@ func isTime(reply Reply) (*time.Time, error) {
 	}
 	diffFromNow := t.Sub(now)
 	if diffFromNow.Minutes() < 0 {
-		log.Printf("[isTime] %v \n", diffFromNow)
+		// log.Printf("[isTime] %v \n", diffFromNow)
 		return &t, errors.New("Time is in the past")
 	}
 	if diffFromNow.Hours() > 24 {
-		log.Printf("[isTime] %v \n", diffFromNow)
+		// log.Printf("[isTime] %v \n", diffFromNow)
 		return &t, errors.New("Only allow 24-hr in advance")
 	}
 	return &t, nil
@@ -380,7 +380,6 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 			log.Printf("[ProcessReservationStep] when: %v %v \n", tm, err)
 			return rec, err
 		}
-		log.Printf("[ProcessReservationStep] when passed:\n")
 		rec.ReservedAt = *tm
 	case "done":
 		// nothing to save here save record to postgres
