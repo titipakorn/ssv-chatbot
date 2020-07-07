@@ -18,9 +18,9 @@ var TargetPlaces = []string{"condo a", "citi resort", "bts phromphong"}
 
 // TargetPlaceCoords is a list of coords for places in the service
 var TargetPlaceCoords = [][2]float64{
-	{13.7349, 100.5623},
-	{13.7354784, 100.5749098},
-	{13.7304, 100.5698}}
+	{100.5623, 13.7349},
+	{100.5749098, 13.7354784},
+	{100.5698, 13.7304}}
 
 // IsThisIn is an exactly "key in list"
 func IsThisIn(word string, groupsOfWords []string) bool {
