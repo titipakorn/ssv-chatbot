@@ -31,9 +31,9 @@ type Trip struct {
 func (app *HailingApp) FindOrCreateUser(lineUserID string) (*User, error) {
 	row := User{}
 	err := app.pdb.QueryRow(`
-		SELECT id,username,profile_url FROM "user"
+		SELECT id,line_user_id,username,profile_url FROM "user"
 		WHERE line_user_id=$1`,
-		lineUserID).Scan(&row.ID, &row.Username, &row.ProfileURL)
+		lineUserID).Scan(&row.ID, &row.LineUserID, &row.Username, &row.ProfileURL)
 
 	if err != nil && strings.Contains(err.Error(), "no rows in result set") {
 		// we have to create a new record
@@ -91,13 +91,14 @@ func (app *HailingApp) CreateUser(username string, lineUserID string, profileURL
 // SaveReservationToPostgres is to record this completed reservation to a permanent medium (postgresl)
 func (app *HailingApp) SaveReservationToPostgres(rec *ReservationRecord) (int, error) {
 	var tripID int
-	// TODO: add place_from, place_to here too.
 	if rec.TripID == -1 {
+		placeFrom := fmt.Sprintf("POINT(%.8f %.8f)", rec.FromCoords[0], rec.FromCoords[1])
+		placeTo := fmt.Sprintf("POINT(%.8f %.8f)", rec.ToCoords[0], rec.ToCoords[1])
 		// insert if no trip_id yet
 		err := app.pdb.QueryRow(`
-		INSERT INTO trip("user_id", "from", "to", "reserved_at")
-		VALUES($1, $2, $3, $4) RETURNING id
-		`, rec.UserID, rec.From, rec.To, rec.ReservedAt).Scan(&tripID)
+		INSERT INTO trip("user_id", "from", "place_from", "to", "place_to", "reserved_at")
+		VALUES($1, $2, $3, $4, $5, $6) RETURNING id
+		`, rec.UserID, rec.From, placeFrom, rec.To, placeTo, rec.ReservedAt).Scan(&tripID)
 		if err != nil {
 			log.Printf("[save2psql-create] %v", err)
 			return -1, err

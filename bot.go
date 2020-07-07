@@ -61,7 +61,7 @@ func (app *HailingApp) Callback(w http.ResponseWriter, r *http.Request) {
 func (app *HailingApp) extractReplyFromPostback(event *linebot.Event) error {
 
 	data := event.Postback.Data
-	userID := event.Source.UserID
+	lineUserID := event.Source.UserID
 	log.Printf("[PostbackExtractor] %v\n     %v", data, event.Postback)
 	var reply Reply
 	switch strings.ToLower(data) {
@@ -107,7 +107,7 @@ func (app *HailingApp) extractReplyFromPostback(event *linebot.Event) error {
 	}
 
 	log.Printf("[PostbackExtractor] reply: %v\n", reply)
-	if err := app.handleNextStep(event.ReplyToken, userID, reply); err != nil {
+	if err := app.handleNextStep(event.ReplyToken, lineUserID, reply); err != nil {
 		return err
 	}
 	return nil
@@ -116,7 +116,7 @@ func (app *HailingApp) extractReplyFromPostback(event *linebot.Event) error {
 // extractReplyFromMessage will convert event.Message to Reply for the next process
 func (app *HailingApp) extractReplyFromMessage(event *linebot.Event) error {
 	reply := Reply{}
-	userID := event.Source.UserID
+	lineUserID := event.Source.UserID
 	// question := record.QuestionToAsk()
 	switch message := event.Message.(type) {
 	case *linebot.TextMessage:
@@ -137,7 +137,8 @@ func (app *HailingApp) extractReplyFromMessage(event *linebot.Event) error {
 		// }
 		return app.UnhandledCase(event.ReplyToken)
 	}
-	if err := app.handleNextStep(event.ReplyToken, userID, reply); err != nil {
+	log.Printf("[MessageExtractor] reply: %v\n", reply)
+	if err := app.handleNextStep(event.ReplyToken, lineUserID, reply); err != nil {
 		return err
 	}
 	return nil
@@ -162,14 +163,15 @@ func (app *HailingApp) UnhandledCase(replyToken string) error {
 	return nil
 }
 
-func (app *HailingApp) handleNextStep(replyToken string, userID string, reply Reply) error {
+func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, reply Reply) error {
 	var record *ReservationRecord
 	var err error
 	msgs := []string{"", ""}
 
+	// change pickup time
 	if reply.Text == "modify-pickup-time" {
 		// TODO: deal with this case -- which I am not sure how yet.
-		record, err = app.ProcessReservationStep(userID, reply)
+		record, err = app.ProcessReservationStep(lineUserID, reply)
 		if err != nil {
 			// this supposes to ask the same question again.
 			log.Printf("[handleNextStep] reply incorrectly: %v", err)
@@ -184,9 +186,9 @@ func (app *HailingApp) handleNextStep(replyToken string, userID string, reply Re
 			return nil
 		}
 	}
-
+	// cancel process
 	if IsThisIn(reply.Text, WordsToCancel) {
-		total, err := app.Cancel(userID)
+		total, err := app.Cancel(lineUserID)
 		if err != nil {
 			return err
 		}
@@ -200,9 +202,11 @@ func (app *HailingApp) handleNextStep(replyToken string, userID string, reply Re
 		return nil
 	}
 
+	// status process
 	if IsThisIn(reply.Text, WordsToAskForStatus) {
-		record, err = app.FindRecord(userID)
+		record, err = app.FindRecord(lineUserID)
 		if err != nil {
+			log.Printf("[handleNextStep] err status: %v\n", err)
 			// tell user first:
 			// (1) what is wrong
 			// (2) wanna start reservation record?
@@ -234,16 +238,20 @@ func (app *HailingApp) handleNextStep(replyToken string, userID string, reply Re
 		return app.replyQuestion(replyToken, record, msgs...)
 	}
 
-	if IsThisIn(reply.Text, WordsToInit) { // initial state
-		record, err = app.FindOrCreateRecord(userID)
+	// initial state
+	if IsThisIn(reply.Text, WordsToInit) {
+		log.Printf("[handleNextStep] init (user: %v)\n", lineUserID)
+		record, err = app.FindOrCreateRecord(lineUserID)
 		if err != nil {
+			log.Printf("[handleNextStep] init:err => %v \n", err)
 			return err
 		}
+		log.Printf("[handleNextStep] init:record => %v \n", record)
 	} else {
-		// TODO: we should have Find first if we find any record
 		// if found --> Process
 		// NOT --> Ask wanna start?
-		record, err = app.FindRecord(userID)
+		record, err = app.FindRecord(lineUserID)
+		log.Printf("[handleNextStep] reply A (user: %v) : %v \n   record %v\n", lineUserID, reply, record)
 		if err != nil {
 			if _, err := app.bot.ReplyMessage(
 				replyToken,
@@ -254,7 +262,7 @@ func (app *HailingApp) handleNextStep(replyToken string, userID string, reply Re
 			}
 			return nil
 		}
-		record, err = app.ProcessReservationStep(userID, reply)
+		record, err = app.ProcessReservationStep(lineUserID, reply)
 		if err != nil {
 			// this supposes to ask the same question again.
 			log.Printf("[handleNextStep] reply incorrectly: %v", err)
@@ -283,7 +291,7 @@ func (app *HailingApp) replyQuestion(replyToken string, record *ReservationRecor
 	if err := app.replyBack(replyToken, question, msgs...); err != nil {
 		return err
 	}
-	log.Println("[handleNextStep] ", record)
+	log.Println("[replyQuestion] ", record, question)
 	return nil
 }
 

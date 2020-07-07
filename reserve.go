@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"regexp"
 	"strconv"
@@ -16,14 +15,16 @@ import (
 
 // ReservationRecord : whole process record
 type ReservationRecord struct {
-	State      string    `json:"state"` // i.e. init, from, to, when,
-	Waiting    string    `json:"waiting"`
-	From       string    `json:"from"`
-	To         string    `json:"to"`
-	UserID     uuid.UUID `json:"user_id"` // this is our system id, not line's
-	LineUserID string    `json:"line_user_id"`
-	DriverID   string    `json:"driver_id"`
-	ReservedAt time.Time `json:"reserved_at"`
+	State      string     `json:"state"` // i.e. init, from, to, when,
+	Waiting    string     `json:"waiting"`
+	From       string     `json:"from"`
+	FromCoords [2]float64 `json:"from_coords"`
+	To         string     `json:"to"`
+	ToCoords   [2]float64 `json:"to_coords"`
+	UserID     uuid.UUID  `json:"user_id"` // this is our system id, not line's
+	LineUserID string     `json:"line_user_id"`
+	DriverID   string     `json:"driver_id"`
+	ReservedAt time.Time  `json:"reserved_at"`
 	// PickedUpAt   time.Time `json:"picked_up_at"`
 	// DroppedOffAt time.Time `json:"dropped_off_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -95,7 +96,6 @@ func (app *HailingApp) Cancel(userID string) (int64, error) {
 	}
 
 	if rec.TripID != -1 {
-		// TODO: dealing with postgres too
 		_, err := app.CancelReservation(rec)
 		if err != nil && !strings.Contains(err.Error(), "no rows in result set") {
 			return -1, err
@@ -188,10 +188,12 @@ func (app *HailingApp) FindOrCreateRecord(lineUserID string) (*ReservationRecord
 
 func (app *HailingApp) initReservation(lineUserID string) (*ReservationRecord, error) {
 	user, err := app.FindOrCreateUser(lineUserID)
+	log.Printf("[initReservation] lineID: %v\n", lineUserID)
 	if err != nil {
 		log.Fatal(err)
 		return nil, err
 	}
+	log.Printf("[initReservation] ==> user: %v\n", user)
 	return app.InitReservation(*user)
 }
 
@@ -205,12 +207,14 @@ func (app *HailingApp) InitReservation(user User) (*ReservationRecord, error) {
 		TripID:     -1,
 	}
 
+	log.Printf("[InitReservation] ==> user: %v\n        n_record: %v\n", user, newRecord)
 	buff, _ := json.Marshal(&newRecord)
 	err := app.rdb.Set(user.LineUserID, buff, 5*time.Minute).Err()
 	if err != nil {
 		log.Fatal(err)
 		return nil, err
 	}
+	log.Printf("[InitReservation] ==> set in redis\n")
 	return &newRecord, nil
 }
 
@@ -353,18 +357,22 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 			return rec, errors.New("No location")
 		}
 		if reply.Coords != [2]float64{0, 0} {
-			rec.From = fmt.Sprintf("%v", reply.Coords)
+			rec.From = "custom"
+			rec.FromCoords = reply.Coords
 		} else {
 			rec.From = reply.Text
+			rec.FromCoords = GetCoordsFromPlace(reply.Text)
 		}
 	case "to":
 		if !isLocation(reply) {
 			return rec, errors.New("No location")
 		}
 		if reply.Coords != [2]float64{0, 0} {
-			rec.To = fmt.Sprintf("%v", reply.Coords)
+			rec.To = "custom"
+			rec.ToCoords = reply.Coords
 		} else {
 			rec.To = reply.Text
+			rec.ToCoords = GetCoordsFromPlace(reply.Text)
 		}
 	case "when":
 		tm, err := isTime(reply)
@@ -396,7 +404,6 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 	// log.Printf("[ProcessReservationStep] mid_status_change: %s \n   >> record: %v", rec.State, rec)
 	if rec.State == "done" {
 		cacheDuration = 24 * time.Hour
-		// TODO: write to postgresql
 		tripID, err := app.SaveReservationToPostgres(rec)
 		if err != nil {
 			return rec, err

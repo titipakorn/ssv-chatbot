@@ -79,7 +79,7 @@ func TestInitReserve(t *testing.T) {
 
 	// user return answer correctly
 	step2reply := Reply{
-		Text: "CITI Resort",
+		Coords: [2]float64{13.7354, 100.5741},
 	}
 	rec, err = app.ProcessReservationStep(user.LineUserID, step2reply)
 	if err != nil {
