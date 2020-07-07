@@ -1,6 +1,8 @@
 package main
 
-import "strings"
+import (
+	"strings"
+)
 
 // WordsToInit is an array of eligible words for init reservation process
 var WordsToInit = []string{"call the cab", "i need a ride", "ride now", "reserve ride", "init", "แท็กซี่"}
@@ -13,7 +15,12 @@ var WordsToAskForStatus = []string{"!status", "status"}
 
 // TargetPlaces is an array of eligible words for places in the service
 var TargetPlaces = []string{"condo a", "citi resort", "bts phromphong"}
-var TargetPlaceCoords = []string{"13.7349,100.5623", "13.7354784,100.5749098", "13.7304,100.5698"}
+
+// TargetPlaceCoords is a list of coords for places in the service
+var TargetPlaceCoords = [][2]float64{
+	{13.7349, 100.5623},
+	{13.7354784, 100.5749098},
+	{13.7304, 100.5698}}
 
 // IsThisIn is an exactly "key in list"
 func IsThisIn(word string, groupsOfWords []string) bool {
@@ -24,4 +31,23 @@ func IsThisIn(word string, groupsOfWords []string) bool {
 		}
 	}
 	return false
+}
+
+func indexOf(word string, data []string) int {
+	lower := strings.ToLower(word)
+	for k, v := range data {
+		if lower == v {
+			return k
+		}
+	}
+	return -1
+}
+
+// GetCoordsFromPlace return coords from place name
+func GetCoordsFromPlace(place string) [2]float64 {
+	mInd := indexOf(place, TargetPlaces)
+	if mInd == -1 {
+		return [2]float64{0, 0}
+	}
+	return TargetPlaceCoords[mInd]
 }
