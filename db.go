@@ -151,13 +151,13 @@ func (app *HailingApp) CancelReservation(rec *ReservationRecord) (string, error)
 	}
 	var tripID int
 	now := time.Now()
-	note := "User cancelled vi bot"
+	note := "User cancelled via line-bot"
 	// update postgresql record
 	err = app.pdb.QueryRow(`
 		UPDATE "trip" SET ("note", "cancelled_at") = ($2, $3)
 		WHERE id=$1
 		RETURNING id
-		`, rec.TripID, now, note).Scan(&tripID)
+		`, rec.TripID, note, now).Scan(&tripID)
 	if err != nil {
 		log.Printf("[save2psql-cancel] %v", err)
 		return "failed", err

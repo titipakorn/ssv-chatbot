@@ -77,7 +77,6 @@ func (app *HailingApp) extractReplyFromPostback(event *linebot.Event) error {
 		msg := fmt.Sprintf("%v", event.Postback.Params)
 		reply = Reply{Text: msg}
 	case "datetime-change":
-		// TODO: implement this --> change time after it's already done
 		layout := "2006-01-02T15:04-07:00"
 		str := fmt.Sprintf("%v+07:00", event.Postback.Params.Datetime)
 		log.Printf("[PostbackExtractor] datetime: %v\n", event.Postback.Params)
@@ -99,11 +98,6 @@ func (app *HailingApp) extractReplyFromPostback(event *linebot.Event) error {
 	default:
 		log.Printf("[PostbackExtractor] unhandled case\n")
 		return app.UnhandledCase(event.ReplyToken)
-		// msg := fmt.Sprintf("Got postback: %v", data)
-		// msg := fmt.Sprintf("Hi there, ")
-		// if err := app.replyText(event.ReplyToken, msg); err != nil {
-		// 	log.Println(err)
-		// }
 	}
 
 	log.Printf("[PostbackExtractor] reply: %v\n", reply)
@@ -174,7 +168,7 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 		record, err = app.ProcessReservationStep(lineUserID, reply)
 		if err != nil {
 			// this supposes to ask the same question again.
-			log.Printf("[handleNextStep] reply incorrectly: %v", err)
+			// log.Printf("[handleNextStep] reply incorrectly: %v", err)
 			// TODO: since it's "done" state, we need to return Message here
 			if _, err := app.bot.ReplyMessage(
 				replyToken,
@@ -206,7 +200,7 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 	if IsThisIn(reply.Text, WordsToAskForStatus) {
 		record, err = app.FindRecord(lineUserID)
 		if err != nil {
-			log.Printf("[handleNextStep] err status: %v\n", err)
+			// log.Printf("[handleNextStep] err status: %v\n", err)
 			// tell user first:
 			// (1) what is wrong
 			// (2) wanna start reservation record?
@@ -223,7 +217,7 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 		// check if it's done or not
 		done, _ := record.IsComplete()
 		if done {
-			log.Printf("[handleNextStep] status query: %s \n   >> record: %v", record.State, record)
+			// log.Printf("[handleNextStep] status query: %s \n   >> record: %v", record.State, record)
 			// msg := fmt.Sprintf("Your reservation detail is here [%v]", record)
 			if _, err := app.bot.ReplyMessage(
 				replyToken,
@@ -240,18 +234,16 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 
 	// initial state
 	if IsThisIn(reply.Text, WordsToInit) {
-		log.Printf("[handleNextStep] init (user: %v)\n", lineUserID)
+		// log.Printf("[handleNextStep] init (user: %v)\n", lineUserID)
 		record, err = app.FindOrCreateRecord(lineUserID)
 		if err != nil {
-			log.Printf("[handleNextStep] init:err => %v \n", err)
 			return err
 		}
-		log.Printf("[handleNextStep] init:record => %v \n", record)
+		// log.Printf("[handleNextStep] init:record => %v \n", record)
 	} else {
 		// if found --> Process
 		// NOT --> Ask wanna start?
 		record, err = app.FindRecord(lineUserID)
-		log.Printf("[handleNextStep] reply A (user: %v) : %v \n   record %v\n", lineUserID, reply, record)
 		if err != nil {
 			if _, err := app.bot.ReplyMessage(
 				replyToken,
@@ -265,13 +257,13 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 		record, err = app.ProcessReservationStep(lineUserID, reply)
 		if err != nil {
 			// this supposes to ask the same question again.
-			log.Printf("[handleNextStep] reply incorrectly: %v", err)
+			// log.Printf("[handleNextStep] reply incorrectly: %v", err)
 			msgs[0] = fmt.Sprintf("Error, try again")
 			msgs[1] = fmt.Sprintf("%v", err)
 		}
 	}
 
-	log.Printf("[handleNextStep] %v\n   PrevReply = %v", record, reply)
+	// log.Printf("[handleNextStep] %v\n   PrevReply = %v", record, reply)
 	if record.State == "done" {
 		// this need special care
 		if _, err := app.bot.ReplyMessage(
@@ -291,7 +283,7 @@ func (app *HailingApp) replyQuestion(replyToken string, record *ReservationRecor
 	if err := app.replyBack(replyToken, question, msgs...); err != nil {
 		return err
 	}
-	log.Println("[replyQuestion] ", record, question)
+	// log.Println("[replyQuestion] ", record, question)
 	return nil
 }
 
