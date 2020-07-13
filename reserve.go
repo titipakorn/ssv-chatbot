@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"io/ioutil"
 	"log"
 	"regexp"
 	"strconv"
@@ -11,6 +12,9 @@ import (
 
 	"github.com/go-redis/redis/v7"
 	"github.com/google/uuid"
+	"github.com/paulmach/orb"
+	"github.com/paulmach/orb/geojson"
+	"github.com/paulmach/orb/planar"
 )
 
 // ReservationRecord : whole process record
@@ -287,17 +291,22 @@ func (record *ReservationRecord) QuestionToAsk() Question {
 	}
 }
 
-func isLocation(reply Reply) bool {
-	// TODO: implement this
+// IsLocation validates if the location is in the service area
+func IsLocation(reply Reply) (bool, error) {
 	if reply.Coords != [2]float64{0, 0} {
-		// TODO: probably check if coords are in service area
-		return true
+		b, _ := ioutil.ReadFile("./static/service_area.json")
+		feature, _ := geojson.UnmarshalFeature(b)
+		pnt := orb.Point(reply.Coords)
+		if planar.PolygonContains(feature.Geometry.Bound().ToPolygon(), pnt) {
+			return true, nil
+		}
+		return false, errors.New("Outside service area")
 	}
 	// check for text if it's match
 	if IsThisIn(strings.ToLower(reply.Text), TargetPlaces) {
-		return true
+		return true, nil
 	}
-	return false
+	return false, errors.New("Not a location")
 }
 
 func isTime(reply Reply) (*time.Time, error) {
@@ -353,10 +362,11 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 
 	switch rec.Waiting {
 	case "from":
-		if !isLocation(reply) {
-			return rec, errors.New("No location")
-		}
+		_, err := IsLocation(reply)
 		if reply.Coords != [2]float64{0, 0} {
+			if err != nil {
+				return rec, err
+			}
 			rec.From = "custom"
 			rec.FromCoords = reply.Coords
 		} else {
@@ -364,10 +374,11 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 			rec.FromCoords = GetCoordsFromPlace(reply.Text)
 		}
 	case "to":
-		if !isLocation(reply) {
-			return rec, errors.New("No location")
-		}
+		_, err := IsLocation(reply)
 		if reply.Coords != [2]float64{0, 0} {
+			if err != nil {
+				return rec, err
+			}
 			rec.To = "custom"
 			rec.ToCoords = reply.Coords
 		} else {
