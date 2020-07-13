@@ -11,6 +11,66 @@ import (
 	_ "github.com/lib/pq"
 )
 
+func TestCheckingServiceArea(t *testing.T) {
+	reply := Reply{}
+
+	bad1 := [2]float64{135.5346316, 34.8151187}
+	reply.Coords = bad1
+	_, err := IsLocation(reply)
+	if err == nil {
+		t.Error("Wrong location, but why does it works [bad1]: ", err)
+	}
+
+	bad2 := [2]float64{100.5666977, 13.723}
+	// bad2 := [2]float64{100.566719, 13.724}
+	// bad2 := [2]float64{100.578748, 13.724480}
+	reply.Coords = bad2
+	fmt.Printf("[Test] %v\n", reply)
+	_, err = IsLocation(reply)
+	if err == nil {
+		t.Error("Wrong location, but why does it works [bad2]: ", err)
+	}
+
+	bad3 := [2]float64{100.587, 13.7302877}
+	reply.Coords = bad3
+	_, err = IsLocation(reply)
+	if err == nil {
+		t.Error("Wrong location, but why does it works [bad3]: ", err)
+	}
+
+	bad4 := [2]float64{100.558355, 13.716948}
+	reply.Coords = bad4
+	_, err = IsLocation(reply)
+	if err == nil {
+		t.Error("Wrong location, but why does it works [bad4]: ", err)
+	}
+
+	good1 := [2]float64{100.578748, 13.724480}
+	reply.Coords = good1
+	_, err = IsLocation(reply)
+	if err != nil {
+		t.Error("Good location, why doesn't it work [good1]: ", err)
+	}
+	good2 := [2]float64{100.5691311, 13.7298491}
+	reply.Coords = good2
+	_, err = IsLocation(reply)
+	if err != nil {
+		t.Error("Good location, why doesn't it work [good2]: ", err)
+	}
+	good3 := [2]float64{100.561785, 13.736299}
+	reply.Coords = good3
+	_, err = IsLocation(reply)
+	if err != nil {
+		t.Error("Good location, why doesn't it work [good3]: ", err)
+	}
+	good4 := [2]float64{100.563497, 13.748527}
+	reply.Coords = good4
+	_, err = IsLocation(reply)
+	if err != nil {
+		t.Error("Good location, why doesn't it work [good4]: ", err)
+	}
+}
+
 func TestInitReserve(t *testing.T) {
 	os.Setenv("REDIS_ADDR", "localhost:6379")
 	os.Setenv("REDIS_PASSWORD", "")
