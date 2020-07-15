@@ -31,8 +31,9 @@ type ReservationRecord struct {
 	ReservedAt time.Time  `json:"reserved_at"`
 	// PickedUpAt   time.Time `json:"picked_up_at"`
 	// DroppedOffAt time.Time `json:"dropped_off_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	TripID    int       `json:"trip_id"` // postgresql id
+	UpdatedAt   time.Time `json:"updated_at"`
+	TripID      int       `json:"trip_id"` // postgresql id
+	IsConfirmed bool      `json:"is_confirmed"`
 }
 
 // Reply : to store reply in various message type
@@ -55,11 +56,17 @@ type Question struct {
 	Buttons       []QuickReplyButton
 	DatetimeInput bool
 	LocationInput bool
+	YesInput      bool
 }
 
 // WhatsNext : to ask what should be the next step
 func (record *ReservationRecord) WhatsNext() string {
+	/* Step is as follows
 
+	init -> to -> from -> when -> final -> done
+
+	redis record will not live long anymore
+	*/
 	done, missing := record.IsComplete()
 	if done {
 		record.State = "done"
@@ -86,6 +93,8 @@ func (record *ReservationRecord) WhatsNext() string {
 		if record.To == "" {
 			return "to"
 		}
+	case "final":
+		return "done"
 	case "done":
 		return "pickup"
 	}
@@ -159,11 +168,15 @@ func (record *ReservationRecord) IsComplete() (bool, string) {
 	if record.ReservedAt.Format("2006-01-01") == "0001-01-01" {
 		return false, "when"
 	}
+	if record.IsConfirmed == false {
+		return false, "final"
+	}
 	return true, "done"
 }
 
 // FindRecord : this is the one to ask if we have any reservation
 func (app *HailingApp) FindRecord(lineUserID string) (*ReservationRecord, error) {
+	// TODO: this will fallback to postgreSQL too.
 	result, err := app.rdb.Get(lineUserID).Result()
 	if err == redis.Nil {
 		return nil, errors.New("No record found")
@@ -224,27 +237,8 @@ func (app *HailingApp) InitReservation(user User) (*ReservationRecord, error) {
 
 // QuestionToAsk returns a question appropriate for each state
 func (record *ReservationRecord) QuestionToAsk() Question {
+	// step: init -> to -> from -> when -> final -> done
 	switch strings.ToLower(record.Waiting) {
-	case "when":
-		buttons := []QuickReplyButton{
-			{
-				Label: "Now",
-				Text:  "now",
-			},
-			{
-				Label: "In 15 mins",
-				Text:  "+15min",
-			},
-			{
-				Label: "In 30 mins",
-				Text:  "+30min",
-			},
-		}
-		return Question{
-			Text:          "When?",
-			Buttons:       buttons,
-			DatetimeInput: true,
-		}
 	case "to":
 		buttons := []QuickReplyButton{
 			{
@@ -284,6 +278,31 @@ func (record *ReservationRecord) QuestionToAsk() Question {
 			Text:          "Pickup location?",
 			Buttons:       buttons,
 			LocationInput: true,
+		}
+	case "when":
+		buttons := []QuickReplyButton{
+			{
+				Label: "Now",
+				Text:  "now",
+			},
+			{
+				Label: "In 15 mins",
+				Text:  "+15min",
+			},
+			{
+				Label: "In 30 mins",
+				Text:  "+30min",
+			},
+		}
+		return Question{
+			Text:          "When?",
+			Buttons:       buttons,
+			DatetimeInput: true,
+		}
+	case "final":
+		return Question{
+			Text:     "Confirm",
+			YesInput: true,
 		}
 	}
 	return Question{
@@ -392,6 +411,12 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 			return rec, err
 		}
 		rec.ReservedAt = *tm
+	case "final":
+		// if it's confirmed, then it's done
+		var yesWords = []string{"last-step-confirmation", "confirm", "yes"}
+		if IsThisIn(reply.Text, yesWords) {
+			rec.IsConfirmed = true
+		}
 	case "done":
 		// nothing to save here save record to postgres
 	case "pickup":
@@ -406,14 +431,14 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 	default:
 		return rec, errors.New("Wrong state")
 	}
-	// log.Printf("[ProcessReservationStep] pre_status_change: %s \n   >> record: %v", rec.State, rec)
+	// log.Printf("[ProcessReservationStep] pre_status_change: %s \n   >> record: %v", rec.State, rec.UpdatedAt)
 
 	rec.State = rec.Waiting
 	rec.Waiting = rec.WhatsNext()
-	cacheDuration := 5 * time.Minute
-	// log.Printf("[ProcessReservationStep] mid_status_change: %s \n   >> record: %v", rec.State, rec)
+	rec.UpdatedAt = time.Now() // always show the last updated timestamp
+	cacheDuration := 10 * time.Minute
+	// log.Printf("[ProcessReservationStep] mid_status_change: %s \n   >> record: %v", rec.State, rec.UpdatedAt)
 	if rec.State == "done" {
-		cacheDuration = 24 * time.Hour
 		tripID, err := app.SaveReservationToPostgres(rec)
 		if err != nil {
 			return rec, err
@@ -421,7 +446,7 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 		rec.TripID = tripID
 	}
 	buff, _ := json.Marshal(&rec)
-	// log.Printf("[ProcessReservationStep] post_status_change: %s \n   >> record: %v", rec.State, rec)
+	// log.Printf("[ProcessReservationStep] post_status_change: %s \n   >> record: %v", rec.State, rec.UpdatedAt)
 
 	if err := app.rdb.Set(userID, buff, cacheDuration).Err(); err != nil {
 		log.Fatal(err)

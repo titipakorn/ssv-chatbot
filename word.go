@@ -8,7 +8,7 @@ import (
 var WordsToInit = []string{"call the cab", "i need a ride", "ride now", "reserve ride", "init", "แท็กซี่"}
 
 // WordsToCancel is an array of eligible words for cancel reservation
-var WordsToCancel = []string{"!reset", "reset", "cancel", "ยกเลิก"}
+var WordsToCancel = []string{"!reset", "reset", "cancel", "ยกเลิก", "start over"}
 
 // WordsToAskForStatus is an array of eligible words for asking reservation status
 var WordsToAskForStatus = []string{"!status", "status"}

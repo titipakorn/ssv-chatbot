@@ -2,6 +2,7 @@ export CHANNEL_SECRET=46c554ba1b8bb99901b97bf78c460446
 export CHANNEL_TOKEN=de2uYzv3PPASHPTff5LmxJZENyq7P8x2/tMXFSV2MYMHj+evqwH3Kl8N0acBUqTa4fJql3HPS6coa10XOjqCQNJkTxequaJMQDZZXK/XdHGauFQhf+mV7ceUNlxYl5Al+K7bZwK+30OIrHymxicgDwdB04t89/1O/w1cDnyilFU=
 export PORT=7007
 export APP_BASE_URL=https://line-bot.10z.dev
+export OSRM_BASE_URL=https://nishi.10z.dev/route/v1
 
 
 export REDIS_ADDR=127.0.0.1:6379
