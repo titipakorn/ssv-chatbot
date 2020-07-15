@@ -117,7 +117,7 @@ func TestInitReserve(t *testing.T) {
 	if step1 != "to" {
 		t.Errorf("[1] App state is not 'to' != %v", step1)
 	}
-	// user return answer correctly
+	// user return answer "TO question" correctly
 	step1reply := Reply{
 		Text: "BTS Phromphong",
 	}
@@ -125,7 +125,7 @@ func TestInitReserve(t *testing.T) {
 	if err != nil {
 		t.Error("    processing failed: ", err)
 	}
-	// now record initiailized. First question it is next.
+	//
 	if rec.State != "to" && rec.To == step1reply.Text {
 		t.Errorf("    variable is not correct != %v", rec)
 	}
@@ -137,15 +137,15 @@ func TestInitReserve(t *testing.T) {
 		t.Errorf("[2] App state is not 'from' != %v", step2)
 	}
 
-	// user return answer correctly
+	// user return answer "FROM question" correctly
 	step2reply := Reply{
-		Coords: [2]float64{13.7354, 100.5741},
+		Coords: [2]float64{100.561785, 13.736299},
 	}
 	rec, err = app.ProcessReservationStep(user.LineUserID, step2reply)
 	if err != nil {
 		t.Error("    processing failed: ", err)
 	}
-	// now record initiailized. First question it is next.
+	//
 	if rec.State != "from" && rec.From == step2reply.Text {
 		t.Errorf("    variable is not correct != %v", rec)
 	}
@@ -157,7 +157,7 @@ func TestInitReserve(t *testing.T) {
 		t.Errorf("[3] App state is not 'when' != %v", step3)
 	}
 
-	// user return answer correctly
+	// user return answer "WHEN" correctly
 	step3reply := Reply{
 		Datetime: time.Now().Add(15 * time.Minute),
 	}
@@ -165,7 +165,22 @@ func TestInitReserve(t *testing.T) {
 	if err != nil {
 		t.Error("    processing failed: ", err)
 	}
-	// now record initiailized. First question it is next.
+
+	step4 := rec.Waiting
+	if step4 != "final" {
+		t.Errorf("[4] App state is not 'final' != %v", step3)
+	}
+	// user return answer to "FINAL" or last confirm state
+	// it's actually POSTBACK
+	step4reply := Reply{
+		Text: "last-step-confirmation",
+	}
+	rec, err = app.ProcessReservationStep(user.LineUserID, step4reply)
+	if err != nil {
+		t.Error("    processing failed: ", err)
+	}
+
+	// after this, record should be in DONE state
 	if rec.State != "done" && rec.ReservedAt == step3reply.Datetime {
 		t.Errorf("    variable is not correct != %v", rec)
 	}

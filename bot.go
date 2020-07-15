@@ -68,6 +68,9 @@ func (app *HailingApp) extractReplyFromPostback(event *linebot.Event) error {
 	case "init":
 		// NOTE: this should go to handleNextStep automatically
 		reply = Reply{Text: "call the cab"}
+	case "confirm":
+		// NOTE: this should go to handleNextStep automatically
+		reply = Reply{Text: "last-step-confirmation"}
 	case "cancel":
 		reply = Reply{Text: "cancel"}
 	case "from":
@@ -111,7 +114,6 @@ func (app *HailingApp) extractReplyFromPostback(event *linebot.Event) error {
 func (app *HailingApp) extractReplyFromMessage(event *linebot.Event) error {
 	reply := Reply{}
 	lineUserID := event.Source.UserID
-	// question := record.QuestionToAsk()
 	switch message := event.Message.(type) {
 	case *linebot.TextMessage:
 		txt := event.Message.(*linebot.TextMessage)
@@ -184,7 +186,13 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 	if IsThisIn(reply.Text, WordsToCancel) {
 		total, err := app.Cancel(lineUserID)
 		if err != nil {
-			return err
+			errMsg := fmt.Sprintf("%v", err)
+			if _, err := app.bot.ReplyMessage(
+				replyToken,
+				linebot.NewTextMessage(errMsg),
+			).Do(); err != nil {
+				return err
+			}
 		}
 		msg := fmt.Sprintf("Your reservation cancelled [%v]", total)
 		if _, err := app.bot.ReplyMessage(
@@ -205,12 +213,12 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 			// (1) what is wrong
 			// (2) wanna start reservation record?
 			errMsg := fmt.Sprintf("%v", err)
-			if _, err := app.bot.ReplyMessage(
+			if _, err2 := app.bot.ReplyMessage(
 				replyToken,
-				linebot.NewTextMessage(errMsg),
-				WannaStart(),
-			).Do(); err != nil {
-				return err
+				linebot.NewTextMessage(fmt.Sprintf("%v", errMsg)),
+				ConfirmDialog("Need a ride now?", "Yes", "init"),
+			).Do(); err2 != nil {
+				return err2
 			}
 			return nil
 		}
@@ -245,12 +253,12 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 		// NOT --> Ask wanna start?
 		record, err = app.FindRecord(lineUserID)
 		if err != nil {
-			if _, err := app.bot.ReplyMessage(
+			if _, err2 := app.bot.ReplyMessage(
 				replyToken,
 				linebot.NewTextMessage(fmt.Sprintf("%v", err)),
-				WannaStart(),
-			).Do(); err != nil {
-				return err
+				ConfirmDialog("Need a ride now?", "Yes", "init"),
+			).Do(); err2 != nil {
+				return err2
 			}
 			return nil
 		}
@@ -288,6 +296,21 @@ func (app *HailingApp) replyQuestion(replyToken string, record *ReservationRecor
 }
 
 func (app *HailingApp) replyBack(replyToken string, question Question, messages ...string) error {
+
+	if question.YesInput == true {
+		txt := fmt.Sprintf("%s?", question.Text)
+		postbackData := strings.ToLower(question.Text)
+
+		if _, err := app.bot.ReplyMessage(
+			replyToken,
+			linebot.NewTextMessage("Your options is TODO: --->"),
+			ConfirmDialog(txt, "Yes", postbackData),
+		).Do(); err != nil {
+			return err
+		}
+		return nil
+	}
+
 	replyItems := linebot.NewQuickReplyItems()
 	itemTotal := len(question.Buttons)
 	if question.LocationInput {
@@ -361,8 +384,8 @@ func (app *HailingApp) replyMessage(replyToken string, messages ...linebot.Sendi
 	return nil
 }
 
-// WannaStart returns sendingMessage to ask if user want to start the process
-func WannaStart() linebot.SendingMessage {
+// ConfirmDialog returns sendingMessage to ask if user want to start the process
+func ConfirmDialog(message string, postbackLabel string, postbackData string) linebot.SendingMessage {
 	contents := &linebot.BubbleContainer{
 		Type: linebot.FlexContainerTypeBubble,
 		Body: &linebot.BoxComponent{
@@ -371,7 +394,7 @@ func WannaStart() linebot.SendingMessage {
 			Contents: []linebot.FlexComponent{
 				&linebot.TextComponent{
 					Type:   linebot.FlexComponentTypeText,
-					Text:   "Need a ride now?",
+					Text:   message,
 					Weight: linebot.FlexTextWeightTypeBold,
 					Size:   linebot.FlexTextSizeTypeXl,
 				},
@@ -388,7 +411,7 @@ func WannaStart() linebot.SendingMessage {
 						&linebot.ButtonComponent{
 							Height: linebot.FlexButtonHeightTypeMd,
 							Style:  linebot.FlexButtonStyleTypePrimary,
-							Action: linebot.NewPostbackAction("Yes", "init", "", ""),
+							Action: linebot.NewPostbackAction(postbackLabel, postbackData, "", ""),
 						},
 					},
 				},
