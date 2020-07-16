@@ -389,6 +389,9 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 			rec.From = "custom"
 			rec.FromCoords = reply.Coords
 		} else {
+			if err != nil {
+				return rec, err
+			}
 			rec.From = reply.Text
 			rec.FromCoords = GetCoordsFromPlace(reply.Text)
 		}
@@ -401,6 +404,9 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 			rec.To = "custom"
 			rec.ToCoords = reply.Coords
 		} else {
+			if err != nil {
+				return rec, err
+			}
 			rec.To = reply.Text
 			rec.ToCoords = GetCoordsFromPlace(reply.Text)
 		}

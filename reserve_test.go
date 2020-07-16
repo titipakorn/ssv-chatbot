@@ -11,6 +11,25 @@ import (
 	_ "github.com/lib/pq"
 )
 
+func TestLocationWords(t *testing.T) {
+	reply := Reply{}
+	reply.Text = "Uh"
+	_, err := IsLocation(reply)
+	if err == nil {
+		t.Error("Wrong location, but why does it works [bad1]: ", err)
+	}
+	reply.Text = "what"
+	_, err = IsLocation(reply)
+	if err == nil {
+		t.Error("Wrong location, but why does it works [bad1]: ", err)
+	}
+	reply.Text = "Citi resort"
+	_, err = IsLocation(reply)
+	if err != nil {
+		t.Error("Wrong location, but why does it works [good1]: ", err)
+	}
+}
+
 func TestCheckingServiceArea(t *testing.T) {
 	reply := Reply{}
 
