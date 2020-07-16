@@ -289,26 +289,43 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 func (app *HailingApp) replyQuestion(replyToken string, record *ReservationRecord, msgs ...string) error {
 	question := record.QuestionToAsk()
 	if question.YesInput == true {
-		// this is the final confirmation phase
-		flexVal := 6
-		button := linebot.ButtonComponent{
-			Height: linebot.FlexButtonHeightTypeMd,
-			Style:  linebot.FlexButtonStyleTypePrimary,
-			Flex:   &flexVal,
-			Action: linebot.NewPostbackAction("Confirm", "confirm", "", ""),
-		}
-		if _, err := app.bot.ReplyMessage(
-			replyToken,
-			linebot.NewTextMessage("Your options is TODO: --->"),
-			record.RecordConfirmFlex("Please check information", button),
-			// ConfirmDialog(txt, "Yes", postbackData),
-		).Do(); err != nil {
-			return err
-		}
-		return nil
+		return app.replyFinalStep(replyToken, record)
 	}
 	// regular question flow
 	if err := app.replyBack(replyToken, question, msgs...); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (app *HailingApp) replyFinalStep(replyToken string, record *ReservationRecord) error {
+
+	// this is the final confirmation phase
+	flexVal := 6
+	button := linebot.ButtonComponent{
+		Height: linebot.FlexButtonHeightTypeMd,
+		Style:  linebot.FlexButtonStyleTypePrimary,
+		Flex:   &flexVal,
+		Action: linebot.NewPostbackAction("Confirm", "confirm", "", ""),
+	}
+	// NOTE: alternative options..
+	walkRoute, _ := GetTravelTime("walk", *record)
+	carRoute, _ := GetTravelTime("car", *record)
+
+	optionTxt := ""
+	if carRoute.Duration > 0 {
+		optionTxt = fmt.Sprintf("%sBy car, this would take %.0f minutes.\n", optionTxt, carRoute.Duration/60)
+	}
+	if walkRoute.Duration > 0 {
+		optionTxt = fmt.Sprintf("%sBut if you walk, although this takes around %.0f mins, it's good for your health.", optionTxt, walkRoute.Duration/60)
+	}
+
+	if _, err := app.bot.ReplyMessage(
+		replyToken,
+		linebot.NewTextMessage(optionTxt),
+		record.RecordConfirmFlex("Please check information", button),
+		// ConfirmDialog(txt, "Yes", postbackData),
+	).Do(); err != nil {
 		return err
 	}
 	return nil
