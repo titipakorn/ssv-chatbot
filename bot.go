@@ -229,7 +229,7 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 			// msg := fmt.Sprintf("Your reservation detail is here [%v]", record)
 			if _, err := app.bot.ReplyMessage(
 				replyToken,
-				record.RecordConfirmFlex(),
+				record.RecordConfirmFlex("Ride confirmation"),
 			).Do(); err != nil {
 				return err
 			}
@@ -266,8 +266,8 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 		if err != nil {
 			// this supposes to ask the same question again.
 			// log.Printf("[handleNextStep] reply incorrectly: %v", err)
-			msgs[0] = fmt.Sprintf("Error, try again")
-			msgs[1] = fmt.Sprintf("%v", err)
+			// msgs[0] = fmt.Sprintf("Error, try again")
+			msgs[0] = fmt.Sprintf("%v", err)
 		}
 	}
 
@@ -277,7 +277,7 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 		if _, err := app.bot.ReplyMessage(
 			replyToken,
 			linebot.NewTextMessage("Your ride reservation is done."),
-			record.RecordConfirmFlex(),
+			record.RecordConfirmFlex("Ride confirmation"),
 		).Do(); err != nil {
 			return err
 		}
@@ -288,28 +288,33 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 
 func (app *HailingApp) replyQuestion(replyToken string, record *ReservationRecord, msgs ...string) error {
 	question := record.QuestionToAsk()
-	if err := app.replyBack(replyToken, question, msgs...); err != nil {
-		return err
-	}
-	// log.Println("[replyQuestion] ", record, question)
-	return nil
-}
-
-func (app *HailingApp) replyBack(replyToken string, question Question, messages ...string) error {
-
 	if question.YesInput == true {
-		txt := fmt.Sprintf("%s?", question.Text)
-		postbackData := strings.ToLower(question.Text)
-
+		// this is the final confirmation phase
+		flexVal := 6
+		button := linebot.ButtonComponent{
+			Height: linebot.FlexButtonHeightTypeMd,
+			Style:  linebot.FlexButtonStyleTypePrimary,
+			Flex:   &flexVal,
+			Action: linebot.NewPostbackAction("Confirm", "confirm", "", ""),
+		}
 		if _, err := app.bot.ReplyMessage(
 			replyToken,
 			linebot.NewTextMessage("Your options is TODO: --->"),
-			ConfirmDialog(txt, "Yes", postbackData),
+			record.RecordConfirmFlex("Please check information", button),
+			// ConfirmDialog(txt, "Yes", postbackData),
 		).Do(); err != nil {
 			return err
 		}
 		return nil
 	}
+	// regular question flow
+	if err := app.replyBack(replyToken, question, msgs...); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (app *HailingApp) replyBack(replyToken string, question Question, messages ...string) error {
 
 	replyItems := linebot.NewQuickReplyItems()
 	itemTotal := len(question.Buttons)
@@ -422,13 +427,28 @@ func ConfirmDialog(message string, postbackLabel string, postbackData string) li
 }
 
 // RecordConfirmFlex to return information in form of FLEX
-func (record *ReservationRecord) RecordConfirmFlex() linebot.SendingMessage {
+func (record *ReservationRecord) RecordConfirmFlex(title string, customButtons ...linebot.ButtonComponent) linebot.SendingMessage {
 	flexLabel := 2
 	flexDesc := 8
 	flexBtnLeft := 3
 	flexBtnRight := 6
 	bkk, _ := time.LoadLocation("Asia/Bangkok")
 	bkkReservedTime := record.ReservedAt.In(bkk)
+
+	var successButton linebot.ButtonComponent
+	if len(customButtons) == 0 {
+		successButton = linebot.ButtonComponent{
+			Height: linebot.FlexButtonHeightTypeMd,
+			Style:  linebot.FlexButtonStyleTypeSecondary,
+			Flex:   &flexBtnRight,
+			Action: linebot.NewDatetimePickerAction(
+				"Change pickup time", "datetime-change", "datetime",
+				"", "", ""),
+		}
+	} else {
+		successButton = customButtons[0]
+	}
+
 	contents := &linebot.BubbleContainer{
 		Type: linebot.FlexContainerTypeBubble,
 		Body: &linebot.BoxComponent{
@@ -437,7 +457,7 @@ func (record *ReservationRecord) RecordConfirmFlex() linebot.SendingMessage {
 			Contents: []linebot.FlexComponent{
 				&linebot.TextComponent{
 					Type:   linebot.FlexComponentTypeText,
-					Text:   "Ride confirmation",
+					Text:   title,
 					Weight: linebot.FlexTextWeightTypeBold,
 					Size:   linebot.FlexTextSizeTypeXl,
 				},
@@ -525,18 +545,11 @@ func (record *ReservationRecord) RecordConfirmFlex() linebot.SendingMessage {
 					Contents: []linebot.FlexComponent{
 						&linebot.ButtonComponent{
 							Height: linebot.FlexButtonHeightTypeMd,
-							Style:  linebot.FlexButtonStyleTypeSecondary,
+							Style:  linebot.FlexButtonStyleTypeLink,
 							Flex:   &flexBtnLeft,
 							Action: linebot.NewPostbackAction("Cancel", "cancel", "", ""),
 						},
-						&linebot.ButtonComponent{
-							Height: linebot.FlexButtonHeightTypeMd,
-							Style:  linebot.FlexButtonStyleTypePrimary,
-							Flex:   &flexBtnRight,
-							Action: linebot.NewDatetimePickerAction(
-								"Change pickup time", "datetime-change", "datetime",
-								"", "", ""),
-						},
+						&successButton,
 					},
 				},
 			},
