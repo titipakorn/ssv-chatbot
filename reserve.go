@@ -19,7 +19,7 @@ import (
 
 // ReservationRecord : whole process record
 type ReservationRecord struct {
-	State      string     `json:"state"` // i.e. init, from, to, when,
+	State      string     `json:"state"` // i.e. init, to, from, when, final -> done
 	Waiting    string     `json:"waiting"`
 	From       string     `json:"from"`
 	FromCoords [2]float64 `json:"from_coords"`
@@ -29,8 +29,8 @@ type ReservationRecord struct {
 	LineUserID string     `json:"line_user_id"`
 	DriverID   string     `json:"driver_id"`
 	ReservedAt time.Time  `json:"reserved_at"`
-	// PickedUpAt   time.Time `json:"picked_up_at"`
-	// DroppedOffAt time.Time `json:"dropped_off_at"`
+	PickedUpAt time.Time  `json:"picked_up_at"`
+	// DroppedOffAt time.Time  `json:"dropped_off_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 	TripID      int       `json:"trip_id"` // postgresql id
 	IsConfirmed bool      `json:"is_confirmed"`
@@ -132,12 +132,16 @@ func (app *HailingApp) NextStep(userID string) (*ReservationRecord, string) {
 	nextStep := rec.WhatsNext()
 	rec.Waiting = nextStep
 
-	buff, _ := json.Marshal(&rec)
-	err = app.rdb.Set(userID, buff, 5*time.Minute).Err()
+	err = app.SaveRecordToRedis(rec)
 	if err != nil {
-		log.Fatal(err)
 		return nil, "-"
 	}
+	// buff, _ := json.Marshal(&rec)
+	// err = app.rdb.Set(userID, buff, 5*time.Minute).Err()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// 	return nil, "-"
+	// }
 	return rec, nextStep
 }
 
@@ -174,14 +178,38 @@ func (record *ReservationRecord) IsComplete() (bool, string) {
 	return true, "done"
 }
 
+// SaveRecordToRedis which save ReservationRecord to redis for faster process
+func (app *HailingApp) SaveRecordToRedis(record *ReservationRecord) error {
+	buff, _ := json.Marshal(&record)
+	cacheDuration := 10 * time.Minute
+	// log.Printf("[ProcessReservationStep] post_status_change: %s \n   >> record: %v", rec.State, rec.UpdatedAt)
+	if err := app.rdb.Set(record.LineUserID, buff, cacheDuration).Err(); err != nil {
+		log.Fatal(err)
+		return err
+	}
+	return nil
+}
+
 // FindRecord : this is the one to ask if we have any reservation
 func (app *HailingApp) FindRecord(lineUserID string) (*ReservationRecord, error) {
 	// TODO: this will fallback to postgreSQL too.
 	result, err := app.rdb.Get(lineUserID).Result()
-	if err == redis.Nil {
-		return nil, errors.New("No record found")
-	} else if err != nil {
-		return nil, errors.New("There is a problem")
+	// if err == redis.Nil {
+	// 	return nil, errors.New("No record found")
+	// } else if err != nil {
+	// 	return nil, errors.New("There is a problem")
+	// }
+	if err != nil || err == redis.Nil {
+		rec, err2 := app.FindActiveReservation(lineUserID)
+		if err2 != nil {
+			return nil, errors.New("No record found")
+		}
+		// save to redis before return
+		err2 = app.SaveRecordToRedis(rec)
+		if err2 != nil {
+			return nil, err2
+		}
+		return rec, nil
 	}
 	var rec ReservationRecord
 	json.Unmarshal([]byte(result), &rec)
@@ -225,12 +253,18 @@ func (app *HailingApp) InitReservation(user User) (*ReservationRecord, error) {
 	}
 
 	// log.Printf("[InitReservation] ==> user: %v\n        n_record: %v\n", user, newRecord)
-	buff, _ := json.Marshal(&newRecord)
-	err := app.rdb.Set(user.LineUserID, buff, 5*time.Minute).Err()
+
+	err := app.SaveRecordToRedis(&newRecord)
 	if err != nil {
-		log.Fatal(err)
 		return nil, err
 	}
+
+	// buff, _ := json.Marshal(&newRecord)
+	// err := app.rdb.Set(user.LineUserID, buff, 5*time.Minute).Err()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// 	return nil, err
+	// }
 	// log.Printf("[InitReservation] ==> set in redis\n")
 	return &newRecord, nil
 }
@@ -442,7 +476,7 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 	rec.State = rec.Waiting
 	rec.Waiting = rec.WhatsNext()
 	rec.UpdatedAt = time.Now() // always show the last updated timestamp
-	cacheDuration := 10 * time.Minute
+
 	// log.Printf("[ProcessReservationStep] mid_status_change: %s \n   >> record: %v", rec.State, rec.UpdatedAt)
 	if rec.State == "done" {
 		tripID, err := app.SaveReservationToPostgres(rec)
@@ -451,11 +485,8 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 		}
 		rec.TripID = tripID
 	}
-	buff, _ := json.Marshal(&rec)
-	// log.Printf("[ProcessReservationStep] post_status_change: %s \n   >> record: %v", rec.State, rec.UpdatedAt)
-
-	if err := app.rdb.Set(userID, buff, cacheDuration).Err(); err != nil {
-		log.Fatal(err)
+	err = app.SaveRecordToRedis(rec)
+	if err != nil {
 		return nil, err
 	}
 	return rec, nil
