@@ -136,12 +136,6 @@ func (app *HailingApp) NextStep(userID string) (*ReservationRecord, string) {
 	if err != nil {
 		return nil, "-"
 	}
-	// buff, _ := json.Marshal(&rec)
-	// err = app.rdb.Set(userID, buff, 5*time.Minute).Err()
-	// if err != nil {
-	// 	log.Fatal(err)
-	// 	return nil, "-"
-	// }
 	return rec, nextStep
 }
 
@@ -194,20 +188,16 @@ func (app *HailingApp) SaveRecordToRedis(record *ReservationRecord) error {
 func (app *HailingApp) FindRecord(lineUserID string) (*ReservationRecord, error) {
 	// TODO: this will fallback to postgreSQL too.
 	result, err := app.rdb.Get(lineUserID).Result()
-	// if err == redis.Nil {
-	// 	return nil, errors.New("No record found")
-	// } else if err != nil {
-	// 	return nil, errors.New("There is a problem")
-	// }
 	if err != nil || err == redis.Nil {
-		rec, err2 := app.FindActiveReservation(lineUserID)
-		if err2 != nil {
+		// Redis doesn't do, PostgreSQL will take over
+		rec, err := app.FindActiveReservation(lineUserID)
+		if err != nil {
 			return nil, errors.New("No record found")
 		}
 		// save to redis before return
-		err2 = app.SaveRecordToRedis(rec)
-		if err2 != nil {
-			return nil, err2
+		err = app.SaveRecordToRedis(rec)
+		if err != nil {
+			return nil, err
 		}
 		return rec, nil
 	}
@@ -252,20 +242,10 @@ func (app *HailingApp) InitReservation(user User) (*ReservationRecord, error) {
 		TripID:     -1,
 	}
 
-	// log.Printf("[InitReservation] ==> user: %v\n        n_record: %v\n", user, newRecord)
-
 	err := app.SaveRecordToRedis(&newRecord)
 	if err != nil {
 		return nil, err
 	}
-
-	// buff, _ := json.Marshal(&newRecord)
-	// err := app.rdb.Set(user.LineUserID, buff, 5*time.Minute).Err()
-	// if err != nil {
-	// 	log.Fatal(err)
-	// 	return nil, err
-	// }
-	// log.Printf("[InitReservation] ==> set in redis\n")
 	return &newRecord, nil
 }
 
