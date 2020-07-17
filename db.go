@@ -118,6 +118,28 @@ func (app *HailingApp) SaveReservationToPostgres(rec *ReservationRecord) (int, e
 	return tripID, nil
 }
 
+// FindActiveReservation query from postgresql and put in redis
+func (app *HailingApp) FindActiveReservation(lineUserID string) (*ReservationRecord, error) {
+	record := ReservationRecord{LineUserID: lineUserID, State: "done", IsConfirmed: true}
+	err := app.pdb.QueryRow(`
+	SELECT
+		"id", "user_id", "from", "to", "place_from", "place_to",
+		"reserved_at", "picked_up_at"
+	FROM "trip"
+	WHERE user_id=$1
+		AND dropped_off_at = null
+		AND cancelled_at = null`, lineUserID).Scan(
+		&record.TripID, &record.UserID, &record.From, &record.To,
+		&record.FromCoords, &record.ToCoords, &record.ReservedAt,
+		&record.PickedUpAt,
+	)
+	if err != nil {
+		log.Printf("[FindActiveReservation] %v", err)
+		return nil, err
+	}
+	return &record, nil
+}
+
 // GetTripRecord returns trip record
 func (app *HailingApp) GetTripRecord(rec *ReservationRecord) (*Trip, error) {
 	trip := Trip{}
