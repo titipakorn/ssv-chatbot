@@ -134,7 +134,7 @@ func (app *HailingApp) FindActiveReservation(lineUserID string) (*ReservationRec
 		&record.PickedUpAt,
 	)
 	if err != nil {
-		log.Printf("[FindActiveReservation] %v", err)
+		// log.Printf("[FindActiveReservation] %v", err)
 		return nil, err
 	}
 	return &record, nil
