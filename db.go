@@ -18,13 +18,28 @@ type User struct {
 	ProfileURL string
 }
 
+// Coords stores geojson data
+type Coords struct {
+	Coordinates [2]float64 `json:"coordinates"`
+	Type        string     `json:"type"`
+}
+
 // Trip stores trip information
 type Trip struct {
-	ID         int
-	UserID     uuid.UUID
-	DriverID   uuid.UUID
-	ReservedAt *time.Time
-	PickedUpAt *time.Time
+	ID             int        `json:"id"`
+	UserID         uuid.UUID  `json:"user_id"`
+	DriverID       uuid.UUID  `json:"driver_id"`
+	ReservedAt     *time.Time `json:"reserved_at"`
+	PickedUpAt     *time.Time `json:"picked_up_at"`
+	DroppedOffAt   *time.Time `json:"dropped_off_at"`
+	CancelledAt    *time.Time `json:"cancelled_at"`
+	From           string     `json:"from"`
+	To             string     `json:"to"`
+	PlaceFrom      Coords     `json:"place_from"`
+	PlaceTo        Coords     `json:"place_to"`
+	Note           string     `json:"note"`
+	UserFeedback   string     `json:"user_feedback"`
+	DriverFeedback string     `json:"driver_feedback"`
 }
 
 // FindOrCreateUser handles user query from line user id
