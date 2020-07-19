@@ -82,7 +82,11 @@ func (app *HailingApp) Webhook(w http.ResponseWriter, req *http.Request) {
 	if oldData.AcceptedAt == nil && newData.AcceptedAt != nil {
 		// notify
 		bkkReservedTime := newData.ReservedAt.In(bkk)
-		txt := fmt.Sprintf("Driver accepts the job. Please meet at designated location at %s", bkkReservedTime.Format(time.Kitchen))
+		hhmm := fmt.Sprintf("at %s", bkkReservedTime.Format(time.Kitchen))
+		if time.Now().After(bkkReservedTime) {
+			hhmm = "asap"
+		}
+		txt := fmt.Sprintf("Driver accepts the job. Please meet at designated location %s", hhmm)
 		msg := linebot.NewTextMessage(txt)
 		app.PushNotification(user.LineUserID, msg)
 
