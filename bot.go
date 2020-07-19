@@ -574,3 +574,13 @@ func (record *ReservationRecord) RecordConfirmFlex(title string, customButtons .
 	}
 	return linebot.NewFlexMessage("Ride confirmation", contents)
 }
+
+// PushNotification handle pushing messages to our user
+func (app *HailingApp) PushNotification(lineUserID string, messages ...linebot.SendingMessage) error {
+	_, err := app.bot.PushMessage(lineUserID, messages...).Do()
+	if err != nil {
+		// Do something when some bad happened
+		log.Printf("[PushNoti] %v", lineUserID)
+	}
+	return nil
+}

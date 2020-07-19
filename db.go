@@ -26,20 +26,21 @@ type Coords struct {
 
 // Trip stores trip information
 type Trip struct {
-	ID             int        `json:"id"`
-	UserID         uuid.UUID  `json:"user_id"`
-	DriverID       uuid.UUID  `json:"driver_id"`
-	ReservedAt     *time.Time `json:"reserved_at"`
-	PickedUpAt     *time.Time `json:"picked_up_at"`
-	DroppedOffAt   *time.Time `json:"dropped_off_at"`
-	CancelledAt    *time.Time `json:"cancelled_at"`
-	From           string     `json:"from"`
-	To             string     `json:"to"`
-	PlaceFrom      Coords     `json:"place_from"`
-	PlaceTo        Coords     `json:"place_to"`
-	Note           string     `json:"note"`
-	UserFeedback   string     `json:"user_feedback"`
-	DriverFeedback string     `json:"driver_feedback"`
+	ID           int        `json:"id"`
+	UserID       uuid.UUID  `json:"user_id"`
+	DriverID     uuid.UUID  `json:"driver_id"`
+	ReservedAt   *time.Time `json:"reserved_at"`
+	AcceptedAt   *time.Time `json:"accepted_at"`
+	PickedUpAt   *time.Time `json:"picked_up_at"`
+	DroppedOffAt *time.Time `json:"dropped_off_at"`
+	CancelledAt  *time.Time `json:"cancelled_at"`
+	From         string     `json:"from"`
+	To           string     `json:"to"`
+	// PlaceFrom      Coords     `json:"place_from"`
+	// PlaceTo        Coords     `json:"place_to"`
+	Note           string `json:"note"`
+	UserFeedback   string `json:"user_feedback"`
+	DriverFeedback string `json:"driver_feedback"`
 }
 
 // FindOrCreateUser handles user query from line user id
@@ -71,6 +72,20 @@ func (app *HailingApp) FindOrCreateUser(lineUserID string) (*User, error) {
 	// }
 
 	return &row, nil
+}
+
+// FindUserByID is to find LineUserID from the system ID
+func (app *HailingApp) FindUserByID(ID uuid.UUID) (*User, error) {
+	u := User{}
+	err := app.pdb.QueryRow(`
+	SELECT line_user_id
+	FROM "user"
+	WHERE id=$1`,
+		ID).Scan(&u.LineUserID)
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
 }
 
 // CreateUser handles user creation
