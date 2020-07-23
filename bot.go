@@ -358,13 +358,16 @@ func (app *HailingApp) replyBack(replyToken string, question Question, messages 
 			linebot.NewLocationAction("Send location"))
 		ind++
 	}
+	sendingMsgs := []linebot.SendingMessage{}
+
 	if question.DatetimeInput == true {
 		items[ind] = linebot.NewQuickReplyButton(
 			"",
 			linebot.NewDatetimePickerAction("Pick date & time", "DATETIME", "datetime", "", "", ""))
+		// this is probably when -->
+		sendingMsgs = append(sendingMsgs, EstimatedTravelTimeFlex())
 	}
 	replyItems.Items = items
-	sendingMsgs := []linebot.SendingMessage{}
 	for i := 0; i < len(messages); i++ {
 		if messages[i] != "" {
 			sendingMsgs = append(sendingMsgs, linebot.NewTextMessage(messages[i]))
@@ -441,6 +444,112 @@ func ConfirmDialog(message string, postbackLabel string, postbackData string) li
 		},
 	}
 	return linebot.NewFlexMessage("Start reservation", contents)
+}
+
+// EstimatedTravelTimeFlex shows alternative travel time, but continue asking
+// 		if customer want to use the service, when?
+func EstimatedTravelTimeFlex() linebot.SendingMessage {
+	title := "Estimated travel time"
+	question := "If you'd like to continue with our services, when do you want us to pick you up?"
+	primaryColor := "#000000"
+	secondaryColor := "#AAAAAA"
+	flex0 := 0
+
+	choices := []linebot.FlexComponent{
+		&linebot.BoxComponent{
+			Layout: linebot.FlexBoxLayoutTypeBaseline,
+			Contents: []linebot.FlexComponent{
+				&linebot.IconComponent{
+					URL:  "https://media.10ninox.com/goth/taxi-100x100.png",
+					Size: linebot.FlexIconSizeType3xl,
+				},
+				&linebot.TextComponent{
+					Type:   linebot.FlexComponentTypeText,
+					Text:   "600m",
+					Flex:   &flex0,
+					Margin: linebot.FlexComponentMarginTypeSm,
+					Weight: linebot.FlexTextWeightTypeBold,
+					Color:  secondaryColor,
+				},
+				&linebot.TextComponent{
+					Type:  linebot.FlexComponentTypeText,
+					Text:  "5 min",
+					Size:  linebot.FlexTextSizeTypeXl,
+					Align: linebot.FlexComponentAlignTypeEnd,
+					Color: primaryColor,
+				},
+			},
+		},
+		&linebot.BoxComponent{
+			Layout: linebot.FlexBoxLayoutTypeBaseline,
+			Contents: []linebot.FlexComponent{
+				&linebot.IconComponent{
+					URL:  "https://media.10ninox.com/goth/taxi-100x100.png",
+					Size: linebot.FlexIconSizeType3xl,
+				},
+				&linebot.TextComponent{
+					Type:   linebot.FlexComponentTypeText,
+					Text:   "600m",
+					Flex:   &flex0,
+					Margin: linebot.FlexComponentMarginTypeSm,
+					Weight: linebot.FlexTextWeightTypeBold,
+					Color:  secondaryColor,
+				},
+				&linebot.TextComponent{
+					Type:  linebot.FlexComponentTypeText,
+					Text:  "5 min",
+					Size:  linebot.FlexTextSizeTypeXl,
+					Align: linebot.FlexComponentAlignTypeEnd,
+					Color: primaryColor,
+				},
+			},
+		},
+	}
+
+	contents := &linebot.BubbleContainer{
+		Type: linebot.FlexContainerTypeBubble,
+		Body: &linebot.BoxComponent{
+			Type:   linebot.FlexComponentTypeBox,
+			Layout: linebot.FlexBoxLayoutTypeVertical,
+			Contents: []linebot.FlexComponent{
+				&linebot.TextComponent{
+					Type:   linebot.FlexComponentTypeText,
+					Text:   title,
+					Weight: linebot.FlexTextWeightTypeBold,
+					Size:   linebot.FlexTextSizeTypeLg,
+				},
+				choices[0],
+				choices[1],
+				&linebot.TextComponent{
+					Type:  linebot.FlexComponentTypeText,
+					Text:  question,
+					Size:  linebot.FlexTextSizeTypeMd,
+					Wrap:  true,
+					Color: secondaryColor,
+				},
+			},
+		},
+		Footer: &linebot.BoxComponent{
+			Type:   linebot.FlexComponentTypeBox,
+			Layout: linebot.FlexBoxLayoutTypeVertical,
+			Contents: []linebot.FlexComponent{
+				&linebot.SpacerComponent{
+					Type: linebot.FlexComponentTypeSeparator,
+					Size: linebot.FlexSpacerSizeTypeMd,
+				},
+				&linebot.ButtonComponent{
+					Height: linebot.FlexButtonHeightTypeMd,
+					Style:  linebot.FlexButtonStyleTypePrimary,
+					Color:  "#679AF0",
+					Action: linebot.NewDatetimePickerAction(
+						"Set pickup time", "DATETIME", "datetime",
+						"", "", ""),
+				},
+			},
+		},
+	}
+
+	return linebot.NewFlexMessage("Ride confirmation", contents)
 }
 
 // RecordConfirmFlex to return information in form of FLEX
