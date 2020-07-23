@@ -291,8 +291,40 @@ func (app *HailingApp) replyQuestion(replyToken string, record *ReservationRecor
 	if question.YesInput == true {
 		return app.replyFinalStep(replyToken, record)
 	}
+	if question.Text == "When?" {
+		return app.replyTravelTimeOptionsAndWhen(replyToken, record, question)
+	}
 	// regular question flow
 	if err := app.replyBack(replyToken, question, msgs...); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (app *HailingApp) replyTravelTimeOptionsAndWhen(replyToken string, record *ReservationRecord, question Question) error {
+	items := make([]*linebot.QuickReplyButton, len(question.Buttons))
+	ind := 0
+	for i := 0; i < len(question.Buttons); i++ {
+		btn := question.Buttons[i]
+		qrBtn := linebot.NewQuickReplyButton(
+			app.appBaseURL+"/static/quick/pin.png",
+			linebot.NewMessageAction(btn.Label, btn.Text),
+		)
+		items[i] = qrBtn
+		ind++
+	}
+	replyItems := linebot.NewQuickReplyItems()
+	replyItems.Items = items
+
+	sendingMsgs := []linebot.SendingMessage{}
+	sendingMsgs = append(sendingMsgs, app.EstimatedTravelTimeFlex(record))
+	// ask question
+	sendingMsgs = append(sendingMsgs, linebot.NewTextMessage(question.Text).WithQuickReplies(replyItems))
+
+	if _, err := app.bot.ReplyMessage(
+		replyToken,
+		sendingMsgs...,
+	).Do(); err != nil {
 		return err
 	}
 	return nil
@@ -358,16 +390,14 @@ func (app *HailingApp) replyBack(replyToken string, question Question, messages 
 			linebot.NewLocationAction("Send location"))
 		ind++
 	}
-	sendingMsgs := []linebot.SendingMessage{}
 
 	if question.DatetimeInput == true {
 		items[ind] = linebot.NewQuickReplyButton(
 			"",
 			linebot.NewDatetimePickerAction("Pick date & time", "DATETIME", "datetime", "", "", ""))
-		// this is probably when -->
-		sendingMsgs = append(sendingMsgs, EstimatedTravelTimeFlex())
 	}
 	replyItems.Items = items
+	sendingMsgs := []linebot.SendingMessage{}
 	for i := 0; i < len(messages); i++ {
 		if messages[i] != "" {
 			sendingMsgs = append(sendingMsgs, linebot.NewTextMessage(messages[i]))
@@ -446,88 +476,82 @@ func ConfirmDialog(message string, postbackLabel string, postbackData string) li
 	return linebot.NewFlexMessage("Start reservation", contents)
 }
 
-// EstimatedTravelTimeFlex shows alternative travel time, but continue asking
-// 		if customer want to use the service, when?
-func EstimatedTravelTimeFlex() linebot.SendingMessage {
-	title := "Estimated travel time"
-	question := "If you'd like to continue with our services, when do you want us to pick you up?"
+func (app *HailingApp) travelOption(icon string, distance string, duration string) *linebot.BoxComponent {
+	flex0 := 0
 	primaryColor := "#000000"
 	secondaryColor := "#AAAAAA"
-	flex0 := 0
-
-	choices := []linebot.FlexComponent{
-		&linebot.BoxComponent{
-			Layout: linebot.FlexBoxLayoutTypeBaseline,
-			Contents: []linebot.FlexComponent{
-				&linebot.IconComponent{
-					URL:  "https://media.10ninox.com/goth/taxi-100x100.png",
-					Size: linebot.FlexIconSizeType3xl,
-				},
-				&linebot.TextComponent{
-					Type:   linebot.FlexComponentTypeText,
-					Text:   "600m",
-					Flex:   &flex0,
-					Margin: linebot.FlexComponentMarginTypeSm,
-					Weight: linebot.FlexTextWeightTypeBold,
-					Color:  secondaryColor,
-				},
-				&linebot.TextComponent{
-					Type:  linebot.FlexComponentTypeText,
-					Text:  "5 min",
-					Size:  linebot.FlexTextSizeTypeXl,
-					Align: linebot.FlexComponentAlignTypeEnd,
-					Color: primaryColor,
-				},
+	return &linebot.BoxComponent{
+		Layout: linebot.FlexBoxLayoutTypeBaseline,
+		Contents: []linebot.FlexComponent{
+			&linebot.IconComponent{
+				URL:  fmt.Sprintf("%s/static/%s-100x100.png", app.appBaseURL, icon),
+				Size: linebot.FlexIconSizeType3xl,
 			},
-		},
-		&linebot.BoxComponent{
-			Layout: linebot.FlexBoxLayoutTypeBaseline,
-			Contents: []linebot.FlexComponent{
-				&linebot.IconComponent{
-					URL:  "https://media.10ninox.com/goth/taxi-100x100.png",
-					Size: linebot.FlexIconSizeType3xl,
-				},
-				&linebot.TextComponent{
-					Type:   linebot.FlexComponentTypeText,
-					Text:   "600m",
-					Flex:   &flex0,
-					Margin: linebot.FlexComponentMarginTypeSm,
-					Weight: linebot.FlexTextWeightTypeBold,
-					Color:  secondaryColor,
-				},
-				&linebot.TextComponent{
-					Type:  linebot.FlexComponentTypeText,
-					Text:  "5 min",
-					Size:  linebot.FlexTextSizeTypeXl,
-					Align: linebot.FlexComponentAlignTypeEnd,
-					Color: primaryColor,
-				},
+			&linebot.TextComponent{
+				Type:   linebot.FlexComponentTypeText,
+				Text:   distance,
+				Flex:   &flex0,
+				Margin: linebot.FlexComponentMarginTypeSm,
+				Weight: linebot.FlexTextWeightTypeBold,
+				Color:  secondaryColor,
+			},
+			&linebot.TextComponent{
+				Type:  linebot.FlexComponentTypeText,
+				Text:  duration,
+				Size:  linebot.FlexTextSizeTypeXl,
+				Align: linebot.FlexComponentAlignTypeEnd,
+				Color: primaryColor,
 			},
 		},
 	}
+}
+
+// EstimatedTravelTimeFlex shows alternative travel time, but continue asking
+// 		if customer want to use the service, when?
+func (app *HailingApp) EstimatedTravelTimeFlex(record *ReservationRecord) linebot.SendingMessage {
+	title := "Estimated travel time"
+	question := "If you'd like to continue with our services, when do you want us to pick you up?"
+	secondaryColor := "#AAAAAA"
+
+	// NOTE: alternative options..
+	walkRoute, _ := GetTravelTime("walk", *record)
+	carRoute, _ := GetTravelTime("car", *record)
+
+	elements := []linebot.FlexComponent{}
+	// title
+	elements = append(elements, &linebot.TextComponent{
+		Type:   linebot.FlexComponentTypeText,
+		Text:   title,
+		Weight: linebot.FlexTextWeightTypeBold,
+		Size:   linebot.FlexTextSizeTypeLg,
+	})
+	// travel options :: walk
+	if walkRoute.Duration > 0 {
+		m := fmt.Sprintf("%.0f m", walkRoute.Distance)
+		d := fmt.Sprintf("%.0f min", walkRoute.Duration/60)
+		elements = append(elements, app.travelOption("walk", m, d))
+	}
+	// travel options :: car
+	if carRoute.Duration > 0 {
+		m := fmt.Sprintf("%.0f m", carRoute.Distance)
+		d := fmt.Sprintf("%.0f min", carRoute.Duration/60)
+		elements = append(elements, app.travelOption("taxi", m, d))
+	}
+	// question
+	elements = append(elements, &linebot.TextComponent{
+		Type:  linebot.FlexComponentTypeText,
+		Text:  question,
+		Size:  linebot.FlexTextSizeTypeMd,
+		Wrap:  true,
+		Color: secondaryColor,
+	})
 
 	contents := &linebot.BubbleContainer{
 		Type: linebot.FlexContainerTypeBubble,
 		Body: &linebot.BoxComponent{
-			Type:   linebot.FlexComponentTypeBox,
-			Layout: linebot.FlexBoxLayoutTypeVertical,
-			Contents: []linebot.FlexComponent{
-				&linebot.TextComponent{
-					Type:   linebot.FlexComponentTypeText,
-					Text:   title,
-					Weight: linebot.FlexTextWeightTypeBold,
-					Size:   linebot.FlexTextSizeTypeLg,
-				},
-				choices[0],
-				choices[1],
-				&linebot.TextComponent{
-					Type:  linebot.FlexComponentTypeText,
-					Text:  question,
-					Size:  linebot.FlexTextSizeTypeMd,
-					Wrap:  true,
-					Color: secondaryColor,
-				},
-			},
+			Type:     linebot.FlexComponentTypeBox,
+			Layout:   linebot.FlexBoxLayoutTypeVertical,
+			Contents: elements,
 		},
 		Footer: &linebot.BoxComponent{
 			Type:   linebot.FlexComponentTypeBox,
@@ -544,6 +568,13 @@ func EstimatedTravelTimeFlex() linebot.SendingMessage {
 					Action: linebot.NewDatetimePickerAction(
 						"Set pickup time", "DATETIME", "datetime",
 						"", "", ""),
+				},
+				&linebot.ButtonComponent{
+					Height: linebot.FlexButtonHeightTypeSm,
+					Style:  linebot.FlexButtonStyleTypeLink,
+					Action: linebot.NewPostbackAction(
+						"I'll walk",
+						"cancel", "cancel", ""),
 				},
 			},
 		},
