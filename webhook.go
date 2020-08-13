@@ -97,7 +97,10 @@ func (app *HailingApp) Webhook(w http.ResponseWriter, req *http.Request) {
 
 	} else if oldData.DroppedOffAt == nil && newData.DroppedOffAt != nil {
 		// send feedback form
-		msg := linebot.NewTextMessage("Ride is done, any feedback?")
+		// msg := linebot.NewTextMessage("Ride is done, any feedback?")
+		// TODO: should get tripID and pass along too
+		tripID := newData.ID
+		msg := app.StarFeedbackFlex(tripID)
 		app.PushNotification(user.LineUserID, msg)
 	}
 

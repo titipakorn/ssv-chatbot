@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -59,12 +60,14 @@ func (app *HailingApp) Callback(w http.ResponseWriter, r *http.Request) {
 
 // extractReplyFromPostback will convert event.Message to Reply for the next process
 func (app *HailingApp) extractReplyFromPostback(event *linebot.Event) error {
-
 	data := event.Postback.Data
+
+	postbackType := strings.Split(data, ":")
 	lineUserID := event.Source.UserID
 	log.Printf("[PostbackExtractor] %v\n     %v", data, event.Postback)
 	var reply Reply
-	switch strings.ToLower(data) {
+
+	switch strings.ToLower(postbackType[0]) {
 	case "init":
 		// NOTE: this should go to handleNextStep automatically
 		reply = Reply{Text: "call the cab"}
@@ -88,6 +91,12 @@ func (app *HailingApp) extractReplyFromPostback(event *linebot.Event) error {
 			log.Println(err)
 		}
 		reply = Reply{Text: "modify-pickup-time", Datetime: t}
+	case "star-feedback":
+		if len(postbackType) != 3 {
+			log.Printf("[PostbackExtractor] star-feedback unhandled case : data: %v\n", data)
+			return app.UnhandledCase(event.ReplyToken)
+		}
+		return app.handleFeedback(event.ReplyToken, postbackType[1], postbackType[2])
 	case "datetime":
 		layout := "2006-01-02T15:04-07:00"
 		str := fmt.Sprintf("%v+07:00", event.Postback.Params.Datetime)
@@ -153,6 +162,24 @@ func (app *HailingApp) UnhandledCase(replyToken string) error {
 				),
 			),
 		),
+	).Do(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (app *HailingApp) handleFeedback(replyToken string, tripID string, rating string) error {
+	// TODO:
+	nRating, _ := strconv.Atoi(rating)
+	tID, _ := strconv.Atoi(tripID)
+	_, err := app.SaveTripFeedback(tID, nRating)
+	if err != nil {
+		return err
+	}
+	msg := fmt.Sprintf("Thank you for your feedback. We hope to see you again.")
+	if _, err := app.bot.ReplyMessage(
+		replyToken,
+		linebot.NewTextMessage(msg),
 	).Do(); err != nil {
 		return err
 	}
@@ -506,6 +533,159 @@ func (app *HailingApp) travelOption(icon string, distance string, duration strin
 	}
 }
 
+// StarFeedbackFlex lets user rating the service
+func (app *HailingApp) StarFeedbackFlex(tripID int) linebot.SendingMessage {
+	trip, err := app.GetTripRecordByID(tripID)
+	if err != nil {
+		return nil
+	}
+
+	flexLabel := 3
+	flexDesc := 7
+	duration := trip.DroppedOffAt.Sub(*trip.PickedUpAt)
+
+	elements := []linebot.FlexComponent{
+		&linebot.TextComponent{
+			Type:   linebot.FlexComponentTypeText,
+			Text:   "The ride is done.",
+			Weight: linebot.FlexTextWeightTypeBold,
+			Size:   linebot.FlexTextSizeTypeLg,
+		},
+		&linebot.TextComponent{
+			Type:   linebot.FlexComponentTypeText,
+			Text:   "How do you like our service this time?",
+			Wrap:   true,
+			Weight: linebot.FlexTextWeightTypeRegular,
+			Size:   linebot.FlexTextSizeTypeMd,
+		},
+
+		&linebot.BoxComponent{
+			Type:    linebot.FlexComponentTypeBox,
+			Layout:  linebot.FlexBoxLayoutTypeBaseline,
+			Spacing: linebot.FlexComponentSpacingTypeXs,
+			Margin:  linebot.FlexComponentMarginTypeXl,
+			Contents: []linebot.FlexComponent{
+				&linebot.TextComponent{
+					Type:   linebot.FlexComponentTypeText,
+					Text:   "Pickup",
+					Weight: linebot.FlexTextWeightTypeRegular,
+					Flex:   &flexLabel,
+					Size:   linebot.FlexTextSizeTypeSm,
+				},
+				&linebot.TextComponent{
+					Type:   linebot.FlexComponentTypeText,
+					Text:   trip.From,
+					Weight: linebot.FlexTextWeightTypeRegular,
+					Flex:   &flexDesc,
+					Size:   linebot.FlexTextSizeTypeSm,
+					Wrap:   true,
+				},
+			},
+		},
+		&linebot.BoxComponent{
+			Type:    linebot.FlexComponentTypeBox,
+			Layout:  linebot.FlexBoxLayoutTypeBaseline,
+			Spacing: linebot.FlexComponentSpacingTypeXs,
+			Margin:  linebot.FlexComponentMarginTypeXl,
+			Contents: []linebot.FlexComponent{
+				&linebot.TextComponent{
+					Type:   linebot.FlexComponentTypeText,
+					Text:   "To",
+					Weight: linebot.FlexTextWeightTypeRegular,
+					Flex:   &flexLabel,
+					Size:   linebot.FlexTextSizeTypeSm,
+					Wrap:   true,
+				},
+				&linebot.TextComponent{
+					Type:   linebot.FlexComponentTypeText,
+					Text:   trip.To,
+					Weight: linebot.FlexTextWeightTypeRegular,
+					Flex:   &flexDesc,
+					Size:   linebot.FlexTextSizeTypeSm,
+				},
+			},
+		},
+		&linebot.BoxComponent{
+			Type:    linebot.FlexComponentTypeBox,
+			Layout:  linebot.FlexBoxLayoutTypeBaseline,
+			Spacing: linebot.FlexComponentSpacingTypeXs,
+			Margin:  linebot.FlexComponentMarginTypeXl,
+			Contents: []linebot.FlexComponent{
+				&linebot.TextComponent{
+					Type:   linebot.FlexComponentTypeText,
+					Text:   "Duration",
+					Weight: linebot.FlexTextWeightTypeRegular,
+					Flex:   &flexLabel,
+					Size:   linebot.FlexTextSizeTypeSm,
+				},
+				&linebot.TextComponent{
+					Type:   linebot.FlexComponentTypeText,
+					Text:   fmt.Sprintf("%.0f min", duration.Minutes()),
+					Weight: linebot.FlexTextWeightTypeRegular,
+					Flex:   &flexDesc,
+					Size:   linebot.FlexTextSizeTypeSm,
+				},
+			},
+		},
+		&linebot.ButtonComponent{
+			Height: linebot.FlexButtonHeightTypeSm,
+			Style:  linebot.FlexButtonStyleTypeLink,
+			Action: linebot.NewPostbackAction(
+				"⭐️",
+				fmt.Sprintf("star-feedback:%d:1", tripID), "", ""),
+		},
+		&linebot.ButtonComponent{
+			Height: linebot.FlexButtonHeightTypeSm,
+			Style:  linebot.FlexButtonStyleTypeLink,
+			Action: linebot.NewPostbackAction(
+				"⭐️⭐️",
+				fmt.Sprintf("star-feedback:%d:2", tripID), "", ""),
+		},
+		&linebot.ButtonComponent{
+			Height: linebot.FlexButtonHeightTypeSm,
+			Style:  linebot.FlexButtonStyleTypeLink,
+			Action: linebot.NewPostbackAction(
+				"⭐️⭐️⭐️",
+				fmt.Sprintf("star-feedback:%d:3", tripID), "", ""),
+		},
+		&linebot.ButtonComponent{
+			Height: linebot.FlexButtonHeightTypeSm,
+			Style:  linebot.FlexButtonStyleTypeLink,
+			Action: linebot.NewPostbackAction(
+				"⭐️⭐️⭐️⭐️",
+				fmt.Sprintf("star-feedback:%d:4", tripID), "", ""),
+		},
+		&linebot.ButtonComponent{
+			Height: linebot.FlexButtonHeightTypeSm,
+			Style:  linebot.FlexButtonStyleTypeLink,
+			Action: linebot.NewPostbackAction(
+				"⭐️⭐️⭐️⭐️⭐️",
+				fmt.Sprintf("star-feedback:%d:5", tripID), "", ""),
+		},
+	}
+
+	contents := &linebot.BubbleContainer{
+		Type: linebot.FlexContainerTypeBubble,
+		Body: &linebot.BoxComponent{
+			Type:     linebot.FlexComponentTypeBox,
+			Layout:   linebot.FlexBoxLayoutTypeVertical,
+			Contents: elements,
+		},
+		Footer: &linebot.BoxComponent{
+			Type:   linebot.FlexComponentTypeBox,
+			Layout: linebot.FlexBoxLayoutTypeVertical,
+			Contents: []linebot.FlexComponent{
+				&linebot.SpacerComponent{
+					Type: linebot.FlexComponentTypeSeparator,
+					Size: linebot.FlexSpacerSizeTypeSm,
+				},
+			},
+		},
+	}
+
+	return linebot.NewFlexMessage("Ride confirmation", contents)
+}
+
 // EstimatedTravelTimeFlex shows alternative travel time, but continue asking
 // 		if customer want to use the service, when?
 func (app *HailingApp) EstimatedTravelTimeFlex(record *ReservationRecord) linebot.SendingMessage {
@@ -637,6 +817,7 @@ func (record *ReservationRecord) RecordConfirmFlex(title string, customButtons .
 							Weight: linebot.FlexTextWeightTypeRegular,
 							Flex:   &flexDesc,
 							Size:   linebot.FlexTextSizeTypeSm,
+							Wrap:   true,
 						},
 					},
 				},
@@ -659,6 +840,7 @@ func (record *ReservationRecord) RecordConfirmFlex(title string, customButtons .
 							Weight: linebot.FlexTextWeightTypeRegular,
 							Flex:   &flexDesc,
 							Size:   linebot.FlexTextSizeTypeSm,
+							Wrap:   true,
 						},
 					},
 				},
