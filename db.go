@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
@@ -39,8 +40,8 @@ type Trip struct {
 	// PlaceFrom      Coords     `json:"place_from"`
 	// PlaceTo        Coords     `json:"place_to"`
 	Note           string `json:"note"`
-	UserFeedback   string `json:"user_feedback"`
-	DriverFeedback string `json:"driver_feedback"`
+	UserFeedback   int    `json:"user_feedback"`
+	DriverFeedback int    `json:"driver_feedback"`
 }
 
 // FindOrCreateUser handles user query from line user id
@@ -168,6 +169,38 @@ func (app *HailingApp) FindActiveReservation(lineUserID string) (*ReservationRec
 		return nil, err
 	}
 	return &record, nil
+}
+
+// SaveTripFeedback update feedback from user
+func (app *HailingApp) SaveTripFeedback(tripID int, rating int) (string, error) {
+	var resultTripID int
+	err := app.pdb.QueryRow(`
+	UPDATE "trip" SET "user_feedback" = $2
+	WHERE id=$1
+	RETURNING id
+	`, tripID, rating).Scan(&resultTripID)
+	if err != nil {
+		log.Printf("[save2psql-cancel] %v", err)
+		return "failed", err
+	}
+	return strconv.Itoa(resultTripID), nil
+}
+
+// GetTripRecordByID returns trip record
+func (app *HailingApp) GetTripRecordByID(tripID int) (*Trip, error) {
+	trip := Trip{}
+	err := app.pdb.QueryRow(`
+	SELECT "user_id", "reserved_at", "picked_up_at", "from", "to", "dropped_off_at"
+	FROM "trip"
+	WHERE id=$1`, tripID).Scan(
+		&trip.UserID, &trip.ReservedAt, &trip.PickedUpAt, &trip.From, &trip.To,
+		&trip.DroppedOffAt,
+	)
+	if err != nil {
+		log.Printf("[GetTripRecord] %v", err)
+		return nil, err
+	}
+	return &trip, nil
 }
 
 // GetTripRecord returns trip record
