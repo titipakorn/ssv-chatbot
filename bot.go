@@ -91,6 +91,14 @@ func (app *HailingApp) extractReplyFromPostback(event *linebot.Event) error {
 			log.Println(err)
 		}
 		reply = Reply{Text: "modify-pickup-time", Datetime: t}
+	case "location-options":
+		reply = Reply{Text: "location-options"}
+	case "location":
+		if len(postbackType) > 1 {
+			reply = Reply{Text: data} // include everything e.g. location:BTSxxx
+		} else {
+			return app.UnhandledCase(event.ReplyToken)
+		}
 	case "star-feedback":
 		if len(postbackType) != 3 {
 			log.Printf("[PostbackExtractor] star-feedback unhandled case : data: %v\n", data)
@@ -169,7 +177,6 @@ func (app *HailingApp) UnhandledCase(replyToken string) error {
 }
 
 func (app *HailingApp) handleFeedback(replyToken string, tripID string, rating string) error {
-	// TODO:
 	nRating, _ := strconv.Atoi(rating)
 	tID, _ := strconv.Atoi(tripID)
 	_, err := app.SaveTripFeedback(tID, nRating)
@@ -190,6 +197,19 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 	var record *ReservationRecord
 	var err error
 	msgs := []string{"", ""}
+
+	// location options
+	if reply.Text == "location-options" {
+		log.Printf("[handleNextStep] location-option\n")
+		if _, err := app.bot.ReplyMessage(
+			replyToken,
+			app.LocationOptionFlex(),
+		).Do(); err != nil {
+			log.Printf("[handleNextStep] location-option err: %v", err)
+			return err
+		}
+		return nil
+	}
 
 	// change pickup time
 	if reply.Text == "modify-pickup-time" {
@@ -395,7 +415,8 @@ func (app *HailingApp) replyBack(replyToken string, question Question, messages 
 	replyItems := linebot.NewQuickReplyItems()
 	itemTotal := len(question.Buttons)
 	if question.LocationInput {
-		itemTotal++
+		itemTotal = itemTotal + 2
+		// 1. send location, 2. more options
 	}
 	if question.DatetimeInput {
 		itemTotal++
@@ -412,9 +433,17 @@ func (app *HailingApp) replyBack(replyToken string, question Question, messages 
 		ind++
 	}
 	if question.LocationInput == true {
+		// pickup from map
+		items[ind] = linebot.NewQuickReplyButton(
+			app.appBaseURL+"/static/quick/pin.svg",
+			linebot.NewLocationAction("Send location"),
+		)
+		ind++
+		// more options
 		items[ind] = linebot.NewQuickReplyButton(
 			"",
-			linebot.NewLocationAction("Send location"))
+			linebot.NewPostbackAction("More options", "location-options", "", ""),
+		)
 		ind++
 	}
 
@@ -464,6 +493,42 @@ func (app *HailingApp) replyMessage(replyToken string, messages ...linebot.Sendi
 		return err
 	}
 	return nil
+}
+
+// LocationOptionFlex to send location options
+func (app *HailingApp) LocationOptionFlex() linebot.SendingMessage {
+	locs, err := app.GetLocations(10)
+	if err != nil {
+		log.Printf("[LocationOptionFlex] db failed: %v\n", err)
+		return nil
+	}
+
+	items := []linebot.FlexComponent{
+		&linebot.TextComponent{
+			Type:   linebot.FlexComponentTypeText,
+			Text:   "Pick from the list below",
+			Weight: linebot.FlexTextWeightTypeBold,
+			Size:   linebot.FlexTextSizeTypeMd,
+		}}
+	for _, location := range locs {
+		items = append(items, &linebot.ButtonComponent{
+			Height: linebot.FlexButtonHeightTypeSm,
+			Style:  linebot.FlexButtonStyleTypeLink,
+			Action: linebot.NewPostbackAction(
+				location.Name,
+				fmt.Sprintf("location:%s:%d", location.Name, location.ID),
+				"", ""),
+		})
+	}
+	contents := &linebot.BubbleContainer{
+		Type: linebot.FlexContainerTypeBubble,
+		Body: &linebot.BoxComponent{
+			Type:     linebot.FlexComponentTypeBox,
+			Layout:   linebot.FlexBoxLayoutTypeVertical,
+			Contents: items,
+		},
+	}
+	return linebot.NewFlexMessage("Location options", contents)
 }
 
 // ConfirmDialog returns sendingMessage to ask if user want to start the process

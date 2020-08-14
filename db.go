@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -42,6 +43,56 @@ type Trip struct {
 	Note           string `json:"note"`
 	UserFeedback   int    `json:"user_feedback"`
 	DriverFeedback int    `json:"driver_feedback"`
+}
+
+// Location stores a list of available choices
+type Location struct {
+	ID    int    `json:"id"`
+	Place Coords `json:"place"`
+	Name  string `json:"name"`
+}
+
+// GetLocationByID returns a location in Location struct
+func (app *HailingApp) GetLocationByID(ID int) (*Location, error) {
+	result := Location{}
+	var p []byte
+	err := app.pdb.QueryRow(`SELECT id, name, ST_AsGeoJSON(place)
+		FROM location
+		WHERE id=$1`, ID).Scan(&result.ID, &result.Name, &p)
+	if err != nil {
+		return nil, err
+	}
+	json.Unmarshal(p, &result.Place)
+	return &result, nil
+}
+
+// GetLocations return most popular locations
+func (app *HailingApp) GetLocations(total int) ([]Location, error) {
+	results := []Location{}
+	maxTotal := 10
+	if total < 1 || total > maxTotal {
+		total = maxTotal
+	}
+
+	rows, err := app.pdb.Query(`SELECT id, name, ST_AsGeoJSON(place)
+		FROM location
+		ORDER BY popularity DESC
+		LIMIT $1`, total)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var one Location
+		var p []byte
+		err = rows.Scan(&one.ID, &one.Name, &p)
+		if err != nil {
+			continue
+		}
+		json.Unmarshal(p, &one.Place)
+		results = append(results, one)
+	}
+	return results, nil
 }
 
 // FindOrCreateUser handles user query from line user id
