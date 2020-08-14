@@ -335,6 +335,10 @@ func IsLocation(reply Reply) (bool, error) {
 		}
 		return false, errors.New("Outside service area")
 	}
+	locPostback := strings.Split(reply.Text, ":")
+	if len(locPostback) > 1 && locPostback[0] == "location" {
+		return true, nil
+	}
 	// check for text if it's match
 	if IsThisIn(strings.ToLower(reply.Text), TargetPlaces) {
 		return true, nil
@@ -411,18 +415,29 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 		}
 	case "to":
 		_, err := IsLocation(reply)
+		if err != nil {
+			return rec, err
+		}
 		if reply.Coords != [2]float64{0, 0} {
-			if err != nil {
-				return rec, err
-			}
 			rec.To = "custom"
 			rec.ToCoords = reply.Coords
 		} else {
-			if err != nil {
-				return rec, err
+			locPostback := strings.Split(reply.Text, ":")
+			if len(locPostback) > 1 && locPostback[0] == "location" {
+				ID, err := strconv.Atoi(locPostback[2])
+				if err != nil {
+					return rec, err
+				}
+				loc, err := app.GetLocationByID(ID)
+				if err != nil {
+					return rec, err
+				}
+				rec.To = loc.Name
+				rec.ToCoords = loc.Place.Coordinates
+			} else {
+				rec.To = reply.Text
+				rec.ToCoords = GetCoordsFromPlace(reply.Text)
 			}
-			rec.To = reply.Text
-			rec.ToCoords = GetCoordsFromPlace(reply.Text)
 		}
 	case "when":
 		tm, err := isTime(reply)
