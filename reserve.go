@@ -400,18 +400,31 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 	switch rec.Waiting {
 	case "from":
 		_, err := IsLocation(reply)
+		if err != nil {
+			return rec, err
+		}
 		if reply.Coords != [2]float64{0, 0} {
-			if err != nil {
-				return rec, err
-			}
 			rec.From = "custom"
 			rec.FromCoords = reply.Coords
 		} else {
-			if err != nil {
-				return rec, err
+			locPostback := strings.Split(reply.Text, ":")
+			if len(locPostback) > 1 && locPostback[0] == "location" {
+				log.Printf("[ProcessReservationStep] location-postback: %v", reply.Text)
+				ID, err := strconv.Atoi(locPostback[2])
+				if err != nil {
+					return rec, err
+				}
+				loc, err := app.GetLocationByID(ID)
+				if err != nil {
+					return rec, err
+				}
+				rec.From = loc.Name
+				rec.FromCoords = loc.Place.Coordinates
+			} else {
+				log.Printf("[ProcessReservationStep] location-text: %v", reply.Text)
+				rec.From = reply.Text
+				rec.FromCoords = GetCoordsFromPlace(reply.Text)
 			}
-			rec.From = reply.Text
-			rec.FromCoords = GetCoordsFromPlace(reply.Text)
 		}
 	case "to":
 		_, err := IsLocation(reply)
@@ -424,6 +437,7 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 		} else {
 			locPostback := strings.Split(reply.Text, ":")
 			if len(locPostback) > 1 && locPostback[0] == "location" {
+				log.Printf("[ProcessReservationStep] location-postback: %v", reply.Text)
 				ID, err := strconv.Atoi(locPostback[2])
 				if err != nil {
 					return rec, err
@@ -435,6 +449,7 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 				rec.To = loc.Name
 				rec.ToCoords = loc.Place.Coordinates
 			} else {
+				log.Printf("[ProcessReservationStep] location-text: %v", reply.Text)
 				rec.To = reply.Text
 				rec.ToCoords = GetCoordsFromPlace(reply.Text)
 			}
