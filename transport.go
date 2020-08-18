@@ -43,12 +43,14 @@ func GetTravelTime(mode string, rec ReservationRecord) (*Route, error) {
 	}
 	od := fmt.Sprintf("%.8f,%.8f;%.8f,%.8f", rec.FromCoords[0], rec.FromCoords[1], rec.ToCoords[0], rec.ToCoords[1])
 	reqURL := fmt.Sprintf("%s/%s/%s", osrmBaseURL, mode, od)
+	log.Printf("[GetTravelTime] URL: %v", reqURL)
 	httpResp, err := http.Get(reqURL)
 	if err != nil {
 		log.Fatal("Err: ", err)
 		return nil, err
 	}
 	byteValue, _ := ioutil.ReadAll(httpResp.Body)
+	// log.Printf("[GetTravelTime] result: %v", byteValue)
 	var resp body
 	json.Unmarshal(byteValue, &resp)
 	return &resp.Routes[0], nil

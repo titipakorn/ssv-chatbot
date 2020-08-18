@@ -63,6 +63,7 @@ func (app *HailingApp) GetLocationByID(ID int) (*Location, error) {
 		return nil, err
 	}
 	json.Unmarshal(p, &result.Place)
+	log.Printf("[GetLocationByID] location ID: %v -- %v", ID, result)
 	return &result, nil
 }
 
@@ -117,12 +118,6 @@ func (app *HailingApp) FindOrCreateUser(lineUserID string) (*User, error) {
 		}
 		return uC, nil
 	}
-
-	// if err == nil || !strings.Contains(err.Error(), "expected 2 destination arguments") {
-	// 	log.Printf("expected error from wrong number of arguments; actually got: %v", err)
-	// 	return nil, err
-	// }
-
 	return &row, nil
 }
 
@@ -298,10 +293,5 @@ func (app *HailingApp) CancelReservation(rec *ReservationRecord) (string, error)
 		log.Printf("[save2psql-cancel] %v", err)
 		return "failed", err
 	}
-	// err = app.pdb.QueryRow(`
-	// 	DELETE FROM "trip" WHERE id=$1`, rec.TripID).Scan()
-	// if err != nil && !strings.Contains(err.Error(), "no rows in result set") {
-	// 	return "failed", err
-	// }
 	return "success", nil
 }

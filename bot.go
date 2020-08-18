@@ -165,7 +165,7 @@ func (app *HailingApp) UnhandledCase(replyToken string) error {
 		linebot.NewTextMessage("Try \"status\" to get started").WithQuickReplies(
 			linebot.NewQuickReplyItems(
 				linebot.NewQuickReplyButton(
-					app.appBaseURL+"/static/quick/pin.svg",
+					app.appBaseURL+"/static/quick/pin.png",
 					linebot.NewMessageAction("Help", "help"),
 				),
 			),
@@ -204,6 +204,12 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 		if _, err := app.bot.ReplyMessage(
 			replyToken,
 			app.LocationOptionFlex(),
+			linebot.NewTextMessage("Or send me your location!").
+				WithQuickReplies(linebot.NewQuickReplyItems(
+					linebot.NewQuickReplyButton(
+						app.appBaseURL+"/static/quick/pin.png",
+						linebot.NewLocationAction("Send location")),
+				)),
 		).Do(); err != nil {
 			log.Printf("[handleNextStep] location-option err: %v", err)
 			return err
@@ -388,8 +394,16 @@ func (app *HailingApp) replyFinalStep(replyToken string, record *ReservationReco
 		Action: linebot.NewPostbackAction("Confirm", "confirm", "", ""),
 	}
 	// NOTE: alternative options..
-	walkRoute, _ := GetTravelTime("walk", *record)
-	carRoute, _ := GetTravelTime("car", *record)
+	walkRoute, err := GetTravelTime("walk", *record)
+	if err != nil {
+		log.Printf("[replyFinalStep] rec: %v", record)
+		log.Printf("[replyFinalStep] err: %v", err)
+		return err
+	}
+	carRoute, err := GetTravelTime("car", *record)
+	if err != nil {
+		return err
+	}
 
 	optionTxt := ""
 	if carRoute.Duration > 0 {
@@ -426,7 +440,7 @@ func (app *HailingApp) replyBack(replyToken string, question Question, messages 
 	for i := 0; i < len(question.Buttons); i++ {
 		btn := question.Buttons[i]
 		qrBtn := linebot.NewQuickReplyButton(
-			app.appBaseURL+"/static/quick/pin.svg",
+			app.appBaseURL+"/static/quick/pin.png",
 			linebot.NewMessageAction(btn.Label, btn.Text),
 		)
 		items[i] = qrBtn
@@ -435,7 +449,7 @@ func (app *HailingApp) replyBack(replyToken string, question Question, messages 
 	if question.LocationInput == true {
 		// pickup from map
 		items[ind] = linebot.NewQuickReplyButton(
-			app.appBaseURL+"/static/quick/pin.svg",
+			app.appBaseURL+"/static/quick/pin.png",
 			linebot.NewLocationAction("Send location"),
 		)
 		ind++
@@ -520,6 +534,7 @@ func (app *HailingApp) LocationOptionFlex() linebot.SendingMessage {
 				"", ""),
 		})
 	}
+
 	contents := &linebot.BubbleContainer{
 		Type: linebot.FlexContainerTypeBubble,
 		Body: &linebot.BoxComponent{
@@ -759,8 +774,17 @@ func (app *HailingApp) EstimatedTravelTimeFlex(record *ReservationRecord) linebo
 	secondaryColor := "#AAAAAA"
 
 	// NOTE: alternative options..
-	walkRoute, _ := GetTravelTime("walk", *record)
-	carRoute, _ := GetTravelTime("car", *record)
+	walkRoute, err := GetTravelTime("walk", *record)
+	if err != nil {
+		return linebot.NewTextMessage(fmt.Sprintf("err: %v", err))
+	}
+	carRoute, err := GetTravelTime("car", *record)
+	if err != nil {
+		return linebot.NewTextMessage(fmt.Sprintf("err: %v", err))
+	}
+
+	log.Printf("[EstTravelTimeFlex] Walk: %v", walkRoute)
+	log.Printf("[EstTravelTimeFlex] Car: %v", carRoute)
 
 	elements := []linebot.FlexComponent{}
 	// title
