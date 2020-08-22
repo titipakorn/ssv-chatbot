@@ -105,7 +105,8 @@ func (record *ReservationRecord) WhatsNext() string {
 func (app *HailingApp) Cancel(userID string) (int64, error) {
 	rec, err := app.FindRecord(userID)
 	if err != nil {
-		return -1, err
+		// if record not found, it's good
+		return 0, nil
 	}
 
 	if rec.TripID != -1 {
