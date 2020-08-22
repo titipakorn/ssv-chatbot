@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"testing"
+	"time"
 )
 
 func TestTravelTimeService(t *testing.T) {
@@ -25,4 +26,21 @@ func TestTravelTimeService(t *testing.T) {
 	if walkRoute.Duration == carRoute.Duration {
 		t.Errorf("IMPOSSIBLE: Car time == walk time")
 	}
+}
+
+func TestGoogleTravelTimeService(t *testing.T) {
+	rec := ReservationRecord{
+		ReservedAt: time.Now(),
+		FromCoords: [2]float64{100.5685933, 13.7319484},
+		ToCoords:   [2]float64{100.5695537, 13.7430816},
+	}
+	route, err := GetGoogleTravelTime(rec)
+	if err != nil {
+		t.Errorf("GetGoogleTravelTime error: %v", err)
+	}
+	log.Printf("Google (car as default)\n")
+	log.Printf("  Distance: %6.0f m\n", route.Distance)
+	log.Printf("  Duration: %6.0f s\n", route.Duration)
+	log.Printf("  Duration: %6.0f s in traffic\n", route.DurationInTraffic)
+
 }

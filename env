@@ -3,7 +3,7 @@ export CHANNEL_TOKEN=de2uYzv3PPASHPTff5LmxJZENyq7P8x2/tMXFSV2MYMHj+evqwH3Kl8N0ac
 export PORT=7007
 export APP_BASE_URL=https://line-bot.10z.dev
 export OSRM_BASE_URL=https://nishi.10z.dev/route/v1
-
+export GOOGLE_API_KEY=AIzaSyA1pTWMvyaQ72qEkwELZHP3jQu3GEWqgSY
 
 export REDIS_ADDR=127.0.0.1:6379
 export POSTGRES_URI=postgres://sipp11:banshee10@127.0.0.1:25432/hailing

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -370,7 +371,8 @@ func (app *HailingApp) replyTravelTimeOptionsAndWhen(replyToken string, record *
 	replyItems.Items = items
 
 	sendingMsgs := []linebot.SendingMessage{}
-	sendingMsgs = append(sendingMsgs, app.EstimatedTravelTimeFlex(record))
+	// don't give anything since for duration w/traffic requires time obviously
+	// sendingMsgs = append(sendingMsgs, app.EstimatedTravelTimeFlex(record))
 	// ask question
 	sendingMsgs = append(sendingMsgs, linebot.NewTextMessage(question.Text).WithQuickReplies(replyItems))
 
@@ -385,39 +387,12 @@ func (app *HailingApp) replyTravelTimeOptionsAndWhen(replyToken string, record *
 
 func (app *HailingApp) replyFinalStep(replyToken string, record *ReservationRecord) error {
 
-	// this is the final confirmation phase
-	flexVal := 6
-	button := linebot.ButtonComponent{
-		Height: linebot.FlexButtonHeightTypeMd,
-		Style:  linebot.FlexButtonStyleTypePrimary,
-		Flex:   &flexVal,
-		Action: linebot.NewPostbackAction("Confirm", "confirm", "", ""),
-	}
-	// NOTE: alternative options..
-	walkRoute, err := GetTravelTime("walk", *record)
-	if err != nil {
-		log.Printf("[replyFinalStep] rec: %v", record)
-		log.Printf("[replyFinalStep] err: %v", err)
-		return err
-	}
-	carRoute, err := GetTravelTime("car", *record)
-	if err != nil {
-		return err
-	}
-
-	optionTxt := ""
-	if carRoute.Duration > 0 {
-		optionTxt = fmt.Sprintf("%sBy car, this would take %.0f minutes.\n", optionTxt, carRoute.Duration/60)
-	}
-	if walkRoute.Duration > 0 {
-		optionTxt = fmt.Sprintf("%sBut if you walk, although this takes around %.0f mins, it's good for your health.", optionTxt, walkRoute.Duration/60)
-	}
-
+	btnAction := linebot.NewPostbackAction("Confirm", "confirm", "", "")
 	if _, err := app.bot.ReplyMessage(
 		replyToken,
-		linebot.NewTextMessage(optionTxt),
-		record.RecordConfirmFlex("Please check information", button),
-		// ConfirmDialog(txt, "Yes", postbackData),
+		// linebot.NewTextMessage(optionTxt),
+		app.EstimatedTravelTimeFlex(record, btnAction),
+		// record.RecordConfirmFlex("Please check information", button),
 	).Do(); err != nil {
 		return err
 	}
@@ -595,12 +570,14 @@ func (app *HailingApp) travelOption(icon string, distance string, duration strin
 				Size: linebot.FlexIconSizeType3xl,
 			},
 			&linebot.TextComponent{
-				Type:   linebot.FlexComponentTypeText,
-				Text:   distance,
-				Flex:   &flex0,
-				Margin: linebot.FlexComponentMarginTypeSm,
-				Weight: linebot.FlexTextWeightTypeBold,
-				Color:  secondaryColor,
+				Type:    linebot.FlexComponentTypeText,
+				Text:    distance,
+				Flex:    &flex0,
+				Margin:  linebot.FlexComponentMarginTypeSm,
+				Weight:  linebot.FlexTextWeightTypeRegular,
+				Color:   secondaryColor,
+				Wrap:    true,
+				Gravity: linebot.FlexComponentGravityTypeCenter,
 			},
 			&linebot.TextComponent{
 				Type:  linebot.FlexComponentTypeText,
@@ -768,52 +745,32 @@ func (app *HailingApp) StarFeedbackFlex(tripID int) linebot.SendingMessage {
 
 // EstimatedTravelTimeFlex shows alternative travel time, but continue asking
 // 		if customer want to use the service, when?
-func (app *HailingApp) EstimatedTravelTimeFlex(record *ReservationRecord) linebot.SendingMessage {
-	title := "Estimated travel time"
-	question := "If you'd like to continue with our services, when do you want us to pick you up?"
-	secondaryColor := "#AAAAAA"
+func (app *HailingApp) EstimatedTravelTimeFlex(record *ReservationRecord, btnAction linebot.TemplateAction) linebot.SendingMessage {
+	// secondaryColor := "#AAAAAA"
+	elements := []linebot.FlexComponent{
+		&linebot.TextComponent{
+			Type:   linebot.FlexComponentTypeText,
+			Text:   "Your reservation: confirmation",
+			Weight: linebot.FlexTextWeightTypeBold,
+			Size:   linebot.FlexTextSizeTypeXl,
+			Wrap:   true,
+		},
+	}
+	elements = append(elements, RecordInformationFlexArray(record)...)
+	estTimeElements, err := app.TravelTimeFlexArray(record)
+	if err == nil {
+		elements = append(elements, estTimeElements...)
+	}
 
-	// NOTE: alternative options..
-	walkRoute, err := GetTravelTime("walk", *record)
-	if err != nil {
-		return linebot.NewTextMessage(fmt.Sprintf("err: %v", err))
-	}
-	carRoute, err := GetTravelTime("car", *record)
-	if err != nil {
-		return linebot.NewTextMessage(fmt.Sprintf("err: %v", err))
-	}
-
-	log.Printf("[EstTravelTimeFlex] Walk: %v", walkRoute)
-	log.Printf("[EstTravelTimeFlex] Car: %v", carRoute)
-
-	elements := []linebot.FlexComponent{}
-	// title
-	elements = append(elements, &linebot.TextComponent{
-		Type:   linebot.FlexComponentTypeText,
-		Text:   title,
-		Weight: linebot.FlexTextWeightTypeBold,
-		Size:   linebot.FlexTextSizeTypeLg,
-	})
-	// travel options :: walk
-	if walkRoute.Duration > 0 {
-		m := fmt.Sprintf("%.0f m", walkRoute.Distance)
-		d := fmt.Sprintf("%.0f min", walkRoute.Duration/60)
-		elements = append(elements, app.travelOption("walk", m, d))
-	}
-	// travel options :: car
-	if carRoute.Duration > 0 {
-		m := fmt.Sprintf("%.0f m", carRoute.Distance)
-		d := fmt.Sprintf("%.0f min", carRoute.Duration/60)
-		elements = append(elements, app.travelOption("taxi", m, d))
-	}
 	// question
-	elements = append(elements, &linebot.TextComponent{
-		Type:  linebot.FlexComponentTypeText,
-		Text:  question,
-		Size:  linebot.FlexTextSizeTypeMd,
-		Wrap:  true,
-		Color: secondaryColor,
-	})
+	// question := "If you'd like to continue with our services, when do you want us to pick you up?"
+	// elements = append(elements, &linebot.TextComponent{
+	// 	Type:  linebot.FlexComponentTypeText,
+	// 	Text:  question,
+	// 	Size:  linebot.FlexTextSizeTypeMd,
+	// 	Wrap:  true,
+	// 	Color: secondaryColor,
+	// })
 
 	contents := &linebot.BubbleContainer{
 		Type: linebot.FlexContainerTypeBubble,
@@ -828,21 +785,19 @@ func (app *HailingApp) EstimatedTravelTimeFlex(record *ReservationRecord) linebo
 			Contents: []linebot.FlexComponent{
 				&linebot.SpacerComponent{
 					Type: linebot.FlexComponentTypeSeparator,
-					Size: linebot.FlexSpacerSizeTypeMd,
+					Size: linebot.FlexSpacerSizeTypeSm,
 				},
 				&linebot.ButtonComponent{
 					Height: linebot.FlexButtonHeightTypeMd,
 					Style:  linebot.FlexButtonStyleTypePrimary,
 					Color:  "#679AF0",
-					Action: linebot.NewDatetimePickerAction(
-						"Set pickup time", "DATETIME", "datetime",
-						"", "", ""),
+					Action: btnAction,
 				},
 				&linebot.ButtonComponent{
 					Height: linebot.FlexButtonHeightTypeSm,
 					Style:  linebot.FlexButtonStyleTypeLink,
 					Action: linebot.NewPostbackAction(
-						"I'll walk",
+						"I'll walk instead",
 						"cancel", "cancel", ""),
 				},
 			},
@@ -852,14 +807,135 @@ func (app *HailingApp) EstimatedTravelTimeFlex(record *ReservationRecord) linebo
 	return linebot.NewFlexMessage("Ride confirmation", contents)
 }
 
-// RecordConfirmFlex to return information in form of FLEX
-func (record *ReservationRecord) RecordConfirmFlex(title string, customButtons ...linebot.ButtonComponent) linebot.SendingMessage {
+// TravelTimeFlexArray returns estimated travel time in flex component array
+func (app *HailingApp) TravelTimeFlexArray(record *ReservationRecord) ([]linebot.FlexComponent, error) {
+	title := "Estimated travel time"
+	// NOTE: alternative options..
+	walkRoute, err := GetTravelTime("walk", *record)
+	if err != nil {
+		msg := fmt.Sprintf("err: %v", err)
+		return nil, errors.New(msg)
+	}
+	carRoute, err := GetGoogleTravelTime(*record)
+	if err != nil {
+		msg := fmt.Sprintf("err: %v", err)
+		return nil, errors.New(msg)
+	}
+
+	log.Printf("[EstTravelTimeFlex] Walk: %v", walkRoute)
+	log.Printf("[EstTravelTimeFlex] Car: %v", carRoute)
+
+	elements := []linebot.FlexComponent{}
+	// title
+	elements = append(elements, &linebot.TextComponent{
+		Type:   linebot.FlexComponentTypeText,
+		Text:   title,
+		Weight: linebot.FlexTextWeightTypeRegular,
+		Size:   linebot.FlexTextSizeTypeLg,
+		Margin: linebot.FlexComponentMarginTypeMd,
+	})
+	// travel options :: walk
+	if walkRoute.Duration > 0 {
+		m := fmt.Sprintf("%.0f m", walkRoute.Distance)
+		d := fmt.Sprintf("%.0f min", walkRoute.Duration/60)
+		elements = append(elements, app.travelOption("walk", m, d))
+	}
+	// travel options :: car
+	if carRoute.Duration > 0 {
+		m := fmt.Sprintf("%.0f m", carRoute.Distance)
+		if carRoute.DurationInTraffic > carRoute.Duration {
+			m = fmt.Sprintf("%.0f m\n%.0f min w/o traffic", carRoute.Distance, carRoute.Duration/60)
+		}
+		d := fmt.Sprintf("%.0f min", carRoute.DurationInTraffic/60)
+		elements = append(elements, app.travelOption("taxi", m, d))
+	}
+	return elements, nil
+}
+
+// RecordInformationFlexArray returns array of record information
+func RecordInformationFlexArray(record *ReservationRecord) []linebot.FlexComponent {
 	flexLabel := 2
 	flexDesc := 8
-	flexBtnLeft := 3
-	flexBtnRight := 6
 	bkk, _ := time.LoadLocation("Asia/Bangkok")
 	bkkReservedTime := record.ReservedAt.In(bkk)
+
+	flexComponents := []linebot.FlexComponent{
+		&linebot.BoxComponent{
+			Type:    linebot.FlexComponentTypeBox,
+			Layout:  linebot.FlexBoxLayoutTypeBaseline,
+			Spacing: linebot.FlexComponentSpacingTypeXs,
+			Margin:  linebot.FlexComponentMarginTypeXl,
+			Contents: []linebot.FlexComponent{
+				&linebot.TextComponent{
+					Type:   linebot.FlexComponentTypeText,
+					Text:   "Pickup",
+					Weight: linebot.FlexTextWeightTypeRegular,
+					Flex:   &flexLabel,
+					Size:   linebot.FlexTextSizeTypeSm,
+				},
+				&linebot.TextComponent{
+					Type:   linebot.FlexComponentTypeText,
+					Text:   record.From,
+					Weight: linebot.FlexTextWeightTypeRegular,
+					Flex:   &flexDesc,
+					Size:   linebot.FlexTextSizeTypeSm,
+					Wrap:   true,
+				},
+			},
+		},
+		&linebot.BoxComponent{
+			Type:    linebot.FlexComponentTypeBox,
+			Layout:  linebot.FlexBoxLayoutTypeBaseline,
+			Spacing: linebot.FlexComponentSpacingTypeXs,
+			Margin:  linebot.FlexComponentMarginTypeXl,
+			Contents: []linebot.FlexComponent{
+				&linebot.TextComponent{
+					Type:   linebot.FlexComponentTypeText,
+					Text:   "To",
+					Weight: linebot.FlexTextWeightTypeRegular,
+					Flex:   &flexLabel,
+					Size:   linebot.FlexTextSizeTypeSm,
+				},
+				&linebot.TextComponent{
+					Type:   linebot.FlexComponentTypeText,
+					Text:   record.To,
+					Weight: linebot.FlexTextWeightTypeRegular,
+					Flex:   &flexDesc,
+					Size:   linebot.FlexTextSizeTypeSm,
+					Wrap:   true,
+				},
+			},
+		},
+		&linebot.BoxComponent{
+			Type:    linebot.FlexComponentTypeBox,
+			Layout:  linebot.FlexBoxLayoutTypeBaseline,
+			Spacing: linebot.FlexComponentSpacingTypeXs,
+			Margin:  linebot.FlexComponentMarginTypeXl,
+			Contents: []linebot.FlexComponent{
+				&linebot.TextComponent{
+					Type:   linebot.FlexComponentTypeText,
+					Text:   "Time",
+					Weight: linebot.FlexTextWeightTypeRegular,
+					Flex:   &flexLabel,
+					Size:   linebot.FlexTextSizeTypeSm,
+				},
+				&linebot.TextComponent{
+					Type:   linebot.FlexComponentTypeText,
+					Text:   bkkReservedTime.Format(time.Kitchen),
+					Weight: linebot.FlexTextWeightTypeRegular,
+					Flex:   &flexDesc,
+					Size:   linebot.FlexTextSizeTypeSm,
+				},
+			},
+		},
+	}
+	return flexComponents
+}
+
+// RecordConfirmFlex to return information in form of FLEX
+func (record *ReservationRecord) RecordConfirmFlex(title string, customButtons ...linebot.ButtonComponent) linebot.SendingMessage {
+	flexBtnLeft := 3
+	flexBtnRight := 6
 
 	var successButton linebot.ButtonComponent
 	if len(customButtons) == 0 {
@@ -875,98 +951,32 @@ func (record *ReservationRecord) RecordConfirmFlex(title string, customButtons .
 		successButton = customButtons[0]
 	}
 
+	elements := []linebot.FlexComponent{
+		&linebot.TextComponent{
+			Type:   linebot.FlexComponentTypeText,
+			Text:   title,
+			Weight: linebot.FlexTextWeightTypeBold,
+			Size:   linebot.FlexTextSizeTypeXl,
+		},
+	}
+	elements = append(elements, RecordInformationFlexArray(record)...)
+
 	contents := &linebot.BubbleContainer{
 		Type: linebot.FlexContainerTypeBubble,
 		Body: &linebot.BoxComponent{
-			Type:   linebot.FlexComponentTypeBox,
-			Layout: linebot.FlexBoxLayoutTypeVertical,
-			Contents: []linebot.FlexComponent{
-				&linebot.TextComponent{
-					Type:   linebot.FlexComponentTypeText,
-					Text:   title,
-					Weight: linebot.FlexTextWeightTypeBold,
-					Size:   linebot.FlexTextSizeTypeXl,
-				},
-				&linebot.BoxComponent{
-					Type:    linebot.FlexComponentTypeBox,
-					Layout:  linebot.FlexBoxLayoutTypeBaseline,
-					Spacing: linebot.FlexComponentSpacingTypeXs,
-					Margin:  linebot.FlexComponentMarginTypeXl,
-					Contents: []linebot.FlexComponent{
-						&linebot.TextComponent{
-							Type:   linebot.FlexComponentTypeText,
-							Text:   "Pickup",
-							Weight: linebot.FlexTextWeightTypeRegular,
-							Flex:   &flexLabel,
-							Size:   linebot.FlexTextSizeTypeSm,
-						},
-						&linebot.TextComponent{
-							Type:   linebot.FlexComponentTypeText,
-							Text:   record.From,
-							Weight: linebot.FlexTextWeightTypeRegular,
-							Flex:   &flexDesc,
-							Size:   linebot.FlexTextSizeTypeSm,
-							Wrap:   true,
-						},
-					},
-				},
-				&linebot.BoxComponent{
-					Type:    linebot.FlexComponentTypeBox,
-					Layout:  linebot.FlexBoxLayoutTypeBaseline,
-					Spacing: linebot.FlexComponentSpacingTypeXs,
-					Margin:  linebot.FlexComponentMarginTypeXl,
-					Contents: []linebot.FlexComponent{
-						&linebot.TextComponent{
-							Type:   linebot.FlexComponentTypeText,
-							Text:   "To",
-							Weight: linebot.FlexTextWeightTypeRegular,
-							Flex:   &flexLabel,
-							Size:   linebot.FlexTextSizeTypeSm,
-						},
-						&linebot.TextComponent{
-							Type:   linebot.FlexComponentTypeText,
-							Text:   record.To,
-							Weight: linebot.FlexTextWeightTypeRegular,
-							Flex:   &flexDesc,
-							Size:   linebot.FlexTextSizeTypeSm,
-							Wrap:   true,
-						},
-					},
-				},
-				&linebot.BoxComponent{
-					Type:    linebot.FlexComponentTypeBox,
-					Layout:  linebot.FlexBoxLayoutTypeBaseline,
-					Spacing: linebot.FlexComponentSpacingTypeXs,
-					Margin:  linebot.FlexComponentMarginTypeXl,
-					Contents: []linebot.FlexComponent{
-						&linebot.TextComponent{
-							Type:   linebot.FlexComponentTypeText,
-							Text:   "Time",
-							Weight: linebot.FlexTextWeightTypeRegular,
-							Flex:   &flexLabel,
-							Size:   linebot.FlexTextSizeTypeSm,
-						},
-						&linebot.TextComponent{
-							Type:   linebot.FlexComponentTypeText,
-							Text:   bkkReservedTime.Format(time.Kitchen),
-							Weight: linebot.FlexTextWeightTypeRegular,
-							Flex:   &flexDesc,
-							Size:   linebot.FlexTextSizeTypeSm,
-						},
-					},
-				},
-			},
+			Type:     linebot.FlexComponentTypeBox,
+			Layout:   linebot.FlexBoxLayoutTypeVertical,
+			Contents: elements,
 		},
 		Footer: &linebot.BoxComponent{
 			Type:   linebot.FlexComponentTypeBox,
 			Layout: linebot.FlexBoxLayoutTypeVertical,
 			Contents: []linebot.FlexComponent{
-				&linebot.ButtonComponent{
-					Height: linebot.FlexButtonHeightTypeMd,
-					Style:  linebot.FlexButtonStyleTypeLink,
-					Action: linebot.NewPostbackAction("Call driver", "call", "", ""),
-				},
-
+				// &linebot.ButtonComponent{
+				// 	Height: linebot.FlexButtonHeightTypeMd,
+				// 	Style:  linebot.FlexButtonStyleTypeLink,
+				// 	Action: linebot.NewPostbackAction("Call driver", "call", "", ""),
+				// },
 				&linebot.BoxComponent{
 					Type:   linebot.FlexComponentTypeBox,
 					Layout: linebot.FlexBoxLayoutTypeHorizontal,
