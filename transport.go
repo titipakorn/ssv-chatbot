@@ -80,7 +80,7 @@ type ggLeg struct {
 }
 
 type polylineDict struct {
-	points string `json:"points"`
+	Points string `json:"points"`
 }
 
 type ggRouteResp struct {
@@ -130,6 +130,6 @@ func GetGoogleTravelTime(rec ReservationRecord) (*Route, error) {
 	result.Distance = leg.Distance.Value
 	result.Duration = leg.Duration.Value
 	result.DurationInTraffic = leg.DurationInTraffic.Value
-	result.Geometry = ggResp.Routes[0].OverviewPolyline.points
+	result.Geometry = ggResp.Routes[0].OverviewPolyline.Points
 	return &result, nil
 }

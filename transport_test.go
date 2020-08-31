@@ -15,13 +15,15 @@ func TestTravelTimeService(t *testing.T) {
 	if err != nil {
 		t.Errorf("walk error: %v", err)
 	}
-	log.Printf("Walk Time: %4.0f m / %4.0f s", walkRoute.Distance, walkRoute.Duration)
+	log.Printf("Walk Time: %4.0f m /walkRoute%4.0f s", walkRoute.Distance, walkRoute.Duration)
+	log.Printf(" > Polyline: %s\n", walkRoute.Geometry)
 
 	carRoute, err := GetTravelTime("car", rec)
 	if err != nil {
 		t.Errorf("walk error: %v", err)
 	}
 	log.Printf(" Car Time: %4.0f m / %4.0f s", carRoute.Distance, carRoute.Duration)
+	log.Printf(" > Polyline: %s\n", carRoute.Geometry)
 
 	if walkRoute.Duration == carRoute.Duration {
 		t.Errorf("IMPOSSIBLE: Car time == walk time")
@@ -42,5 +44,6 @@ func TestGoogleTravelTimeService(t *testing.T) {
 	log.Printf("  Distance: %6.0f m\n", route.Distance)
 	log.Printf("  Duration: %6.0f s\n", route.Duration)
 	log.Printf("  Duration: %6.0f s in traffic\n", route.DurationInTraffic)
+	log.Printf("  Polyline: %s\n", route.Geometry)
 
 }
