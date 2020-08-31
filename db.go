@@ -173,9 +173,9 @@ func (app *HailingApp) SaveReservationToPostgres(rec *ReservationRecord) (int, e
 		placeTo := fmt.Sprintf("POINT(%.8f %.8f)", rec.ToCoords[0], rec.ToCoords[1])
 		// insert if no trip_id yet
 		err := app.pdb.QueryRow(`
-		INSERT INTO trip("user_id", "from", "place_from", "to", "place_to", "reserved_at")
-		VALUES($1, $2, $3, $4, $5, $6) RETURNING id
-		`, rec.UserID, rec.From, placeFrom, rec.To, placeTo, rec.ReservedAt).Scan(&tripID)
+		INSERT INTO trip("user_id", "from", "place_from", "to", "place_to", "reserved_at", "polyline")
+		VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id
+		`, rec.UserID, rec.From, placeFrom, rec.To, placeTo, rec.ReservedAt, rec.Polyline).Scan(&tripID)
 		if err != nil {
 			log.Printf("[save2psql-create] %v", err)
 			return -1, err
@@ -201,14 +201,14 @@ func (app *HailingApp) FindActiveReservation(lineUserID string) (*ReservationRec
 	err := app.pdb.QueryRow(`
 	SELECT
 		"id", "user_id", "from", "to", "place_from", "place_to",
-		"reserved_at", "picked_up_at"
+		"reserved_at", "picked_up_at", "polyline"
 	FROM "trip"
 	WHERE user_id=$1
 		AND dropped_off_at = null
 		AND cancelled_at = null`, lineUserID).Scan(
 		&record.TripID, &record.UserID, &record.From, &record.To,
 		&record.FromCoords, &record.ToCoords, &record.ReservedAt,
-		&record.PickedUpAt,
+		&record.PickedUpAt, &record.Polyline,
 	)
 	if err != nil {
 		// log.Printf("[FindActiveReservation] %v", err)

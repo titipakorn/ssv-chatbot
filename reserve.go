@@ -34,6 +34,7 @@ type ReservationRecord struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 	TripID      int       `json:"trip_id"` // postgresql id
 	IsConfirmed bool      `json:"is_confirmed"`
+	Polyline    string    `json:"polyline"`
 }
 
 // Reply : to store reply in various message type
