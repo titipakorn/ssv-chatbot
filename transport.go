@@ -79,11 +79,15 @@ type ggLeg struct {
 	EndLocation       latlon `json:"end_location"`
 }
 
+type polylineDict struct {
+	points string `json:"points"`
+}
+
 type ggRouteResp struct {
-	Bounds           string  `json:"bounds"`
-	Legs             []ggLeg `json:"legs"`
-	OverviewPolyline string  `json:"overview_polyline"`
-	Summary          string  `json:"summary"`
+	Bounds           string       `json:"bounds"`
+	Legs             []ggLeg      `json:"legs"`
+	OverviewPolyline polylineDict `json:"overview_polyline"`
+	Summary          string       `json:"summary"`
 }
 
 type ggDirectionResp struct {
@@ -126,5 +130,6 @@ func GetGoogleTravelTime(rec ReservationRecord) (*Route, error) {
 	result.Distance = leg.Distance.Value
 	result.Duration = leg.Duration.Value
 	result.DurationInTraffic = leg.DurationInTraffic.Value
+	result.Geometry = ggResp.Routes[0].OverviewPolyline.points
 	return &result, nil
 }

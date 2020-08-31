@@ -822,6 +822,14 @@ func (app *HailingApp) TravelTimeFlexArray(record *ReservationRecord) ([]linebot
 		return nil, errors.New(msg)
 	}
 
+	// save polyline from Google's travel time to record
+	record.Polyline = carRoute.Geometry
+	err = app.SaveRecordToRedis(record)
+	if err != nil {
+		msg := fmt.Sprintf("err: %v", err)
+		return nil, errors.New(msg)
+	}
+
 	log.Printf("[EstTravelTimeFlex] Walk: %v", walkRoute)
 	log.Printf("[EstTravelTimeFlex] Car: %v", carRoute)
 
