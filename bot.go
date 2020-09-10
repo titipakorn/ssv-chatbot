@@ -177,6 +177,30 @@ func (app *HailingApp) UnhandledCase(replyToken string) error {
 	return nil
 }
 
+func (app *HailingApp) handleCancel(replyToken string, lineUserID string) error {
+	total, err := app.Cancel(lineUserID)
+	if err != nil {
+		errMsg := fmt.Sprintf("%v", err)
+		if _, err := app.bot.ReplyMessage(
+			replyToken,
+			linebot.NewTextMessage(errMsg),
+		).Do(); err != nil {
+			return err
+		}
+	}
+	if total > 0 {
+		msg := fmt.Sprintf("Your reservation cancelled.")
+		if _, err := app.bot.ReplyMessage(
+			replyToken,
+			linebot.NewTextMessage(msg),
+		).Do(); err != nil {
+			return err
+		}
+	}
+	return nil
+
+}
+
 func (app *HailingApp) handleFeedback(replyToken string, tripID string, rating string) error {
 	nRating, _ := strconv.Atoi(rating)
 	tID, _ := strconv.Atoi(tripID)
@@ -198,6 +222,10 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 	var record *ReservationRecord
 	var err error
 	msgs := []string{"", ""}
+
+	if strings.Contains(reply.Text, "[LIFF]") {
+		return app.handleLIFFCommand(replyToken, lineUserID, reply)
+	}
 
 	// location options
 	if reply.Text == "location-options" {
@@ -236,26 +264,10 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 			return nil
 		}
 	}
+
 	// cancel process
 	if IsThisIn(reply.Text, WordsToCancel) {
-		total, err := app.Cancel(lineUserID)
-		if err != nil {
-			errMsg := fmt.Sprintf("%v", err)
-			if _, err := app.bot.ReplyMessage(
-				replyToken,
-				linebot.NewTextMessage(errMsg),
-			).Do(); err != nil {
-				return err
-			}
-		}
-		msg := fmt.Sprintf("Your reservation cancelled [%v]", total)
-		if _, err := app.bot.ReplyMessage(
-			replyToken,
-			linebot.NewTextMessage(msg),
-		).Do(); err != nil {
-			return err
-		}
-		return nil
+		return app.handleCancel(replyToken, lineUserID)
 	}
 
 	// status process
