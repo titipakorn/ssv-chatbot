@@ -495,13 +495,12 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 		}
 		rec.ReservedAt = *tm
 	case "num_of_passengers":
-		// TODO: implement number of passengers here
-		// tm, err := isTime(reply)
-		// if err != nil {
-		// 	log.Printf("[ProcessReservationStep] when: %v %v \n", tm, err)
-		// 	return rec, err
-		// }
-		// rec.ReservedAt = *tm
+		num, err := strconv.Atoi(reply.Text)
+		if err != nil {
+			log.Printf("[ProcessReservationStep] num_of_passengers: '%v' is not number \n", reply.Text)
+			return rec, err
+		}
+		rec.NumOfPassengers = num
 	case "final":
 		// if it's confirmed, then it's done
 		var yesWords = []string{"last-step-confirmation", "confirm", "yes"}

@@ -186,22 +186,35 @@ func TestInitReserve(t *testing.T) {
 	}
 
 	step4 := rec.Waiting
-	if step4 != "final" {
-		t.Errorf("[4] App state is not 'final' != %v", step3)
+	if step4 != "num_of_passengers" {
+		t.Errorf("[4] App state is not 'num_of_passengers' != %v", step4)
 	}
-	// user return answer to "FINAL" or last confirm state
-	// it's actually POSTBACK
+	// user return answer to "NUMBER OF PASSENGERS"
 	step4reply := Reply{
-		Text: "last-step-confirmation",
+		Text: "2",
 	}
 	rec, err = app.ProcessReservationStep(user.LineUserID, step4reply)
 	if err != nil {
 		t.Error("    processing failed: ", err)
 	}
 
+	step5 := rec.Waiting
+	if step5 != "final" {
+		t.Errorf("[5] App state is not 'final' != %v", step3)
+	}
+	// user return answer to "FINAL" or last confirm state
+	// it's actually POSTBACK
+	step5reply := Reply{
+		Text: "last-step-confirmation",
+	}
+	rec, err = app.ProcessReservationStep(user.LineUserID, step5reply)
+	if err != nil {
+		t.Error("    processing failed: ", err)
+	}
+
 	// after this, record should be in DONE state
 	if rec.State != "done" && rec.ReservedAt == step3reply.Datetime {
-		t.Errorf("    variable is not correct != %v", rec)
+		t.Errorf("   variable is not correct != %v", rec)
 	}
 
 	// [4]
