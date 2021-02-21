@@ -18,6 +18,7 @@ type User struct {
 	LineUserID string
 	Username   string
 	ProfileURL string
+	Language   string
 }
 
 // Coords stores geojson data
@@ -100,9 +101,10 @@ func (app *HailingApp) GetLocations(total int) ([]Location, error) {
 func (app *HailingApp) FindOrCreateUser(lineUserID string) (*User, error) {
 	row := User{}
 	err := app.pdb.QueryRow(`
-		SELECT id,line_user_id,username,profile_url FROM "user"
+		SELECT id,line_user_id,username,profile_url,lang FROM "user"
 		WHERE line_user_id=$1`,
-		lineUserID).Scan(&row.ID, &row.LineUserID, &row.Username, &row.ProfileURL)
+		lineUserID).Scan(
+		&row.ID, &row.LineUserID, &row.Username, &row.ProfileURL, &row.Language)
 
 	if err != nil && strings.Contains(err.Error(), "no rows in result set") {
 		// we have to create a new record
@@ -161,6 +163,7 @@ func (app *HailingApp) CreateUser(username string, lineUserID string, profileURL
 		Username:   username,
 		LineUserID: lineUserID,
 		ProfileURL: profileURL,
+		Language:   "en",
 	}
 	return &u, nil
 }

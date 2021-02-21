@@ -19,22 +19,23 @@ import (
 
 // ReservationRecord : whole process record
 type ReservationRecord struct {
-	State      string     `json:"state"` // i.e. init, to, from, when, final -> done
-	Waiting    string     `json:"waiting"`
-	From       string     `json:"from"`
-	FromCoords [2]float64 `json:"from_coords"`
-	To         string     `json:"to"`
-	ToCoords   [2]float64 `json:"to_coords"`
-	UserID     uuid.UUID  `json:"user_id"` // this is our system id, not line's
-	LineUserID string     `json:"line_user_id"`
-	DriverID   string     `json:"driver_id"`
-	ReservedAt time.Time  `json:"reserved_at"`
-	PickedUpAt time.Time  `json:"picked_up_at"`
+	State           string     `json:"state"` // i.e. init, to, from, when, final -> done
+	Waiting         string     `json:"waiting"`
+	From            string     `json:"from"`
+	FromCoords      [2]float64 `json:"from_coords"`
+	To              string     `json:"to"`
+	ToCoords        [2]float64 `json:"to_coords"`
+	UserID          uuid.UUID  `json:"user_id"` // this is our system id, not line's
+	LineUserID      string     `json:"line_user_id"`
+	DriverID        string     `json:"driver_id"`
+	ReservedAt      time.Time  `json:"reserved_at"`
+	PickedUpAt      time.Time  `json:"picked_up_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+	TripID          int        `json:"trip_id"` // postgresql id
+	IsConfirmed     bool       `json:"is_confirmed"`
+	Polyline        string     `json:"polyline"`
+	NumOfPassengers int        `json:"num_of_passengers"` // postgresql id
 	// DroppedOffAt time.Time  `json:"dropped_off_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-	TripID      int       `json:"trip_id"` // postgresql id
-	IsConfirmed bool      `json:"is_confirmed"`
-	Polyline    string    `json:"polyline"`
 }
 
 // Reply : to store reply in various message type
@@ -73,7 +74,7 @@ func (record *ReservationRecord) WhatsNext() string {
 		record.State = "done"
 	}
 
-	// all states are init, from, to, when
+	// all states are init, from, to, when, num_of_passengers
 	switch record.State {
 	case "init":
 		// TODO: checkout if drivers are all occupied or not. If so, pickup time first.
@@ -93,6 +94,10 @@ func (record *ReservationRecord) WhatsNext() string {
 		// there is a chance that when starts first if all drivers are occupied.
 		if record.To == "" {
 			return "to"
+		}
+	case "num_of_passengers":
+		if record.NumOfPassengers == 0 {
+			return "num_of_passengers"
 		}
 	case "final":
 		return "done"
@@ -167,6 +172,9 @@ func (record *ReservationRecord) IsComplete() (bool, string) {
 	}
 	if record.ReservedAt.Format("2006-01-01") == "0001-01-01" {
 		return false, "when"
+	}
+	if record.NumOfPassengers == 0 {
+		return false, "num_of_passengers"
 	}
 	if record.IsConfirmed == false {
 		return false, "final"
@@ -314,6 +322,29 @@ func (record *ReservationRecord) QuestionToAsk() Question {
 			Text:          "When?",
 			Buttons:       buttons,
 			DatetimeInput: true,
+		}
+	case "num_of_passengers":
+		buttons := []QuickReplyButton{
+			{
+				Label: "1",
+				Text:  "1",
+			},
+			{
+				Label: "2",
+				Text:  "2",
+			},
+			{
+				Label: "3",
+				Text:  "3",
+			},
+			{
+				Label: "4",
+				Text:  "4",
+			},
+		}
+		return Question{
+			Text:    "How many passengers?",
+			Buttons: buttons,
 		}
 	case "final":
 		return Question{
@@ -463,6 +494,14 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 			return rec, err
 		}
 		rec.ReservedAt = *tm
+	case "num_of_passengers":
+		// TODO: implement number of passengers here
+		// tm, err := isTime(reply)
+		// if err != nil {
+		// 	log.Printf("[ProcessReservationStep] when: %v %v \n", tm, err)
+		// 	return rec, err
+		// }
+		// rec.ReservedAt = *tm
 	case "final":
 		// if it's confirmed, then it's done
 		var yesWords = []string{"last-step-confirmation", "confirm", "yes"}
