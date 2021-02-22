@@ -160,6 +160,7 @@ func (app *HailingApp) extractReplyFromMessage(event *linebot.Event) error {
 
 // UnhandledCase return greeting and some initial suggestion to the service
 func (app *HailingApp) UnhandledCase(replyToken string) error {
+
 	if _, err := app.bot.ReplyMessage(
 		replyToken,
 		linebot.NewTextMessage("Hi there, do you need a ride?"),

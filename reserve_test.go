@@ -91,10 +91,18 @@ func TestCheckingServiceArea(t *testing.T) {
 }
 
 func TestInitReserve(t *testing.T) {
-	os.Setenv("REDIS_ADDR", "localhost:6379")
-	os.Setenv("REDIS_PASSWORD", "")
-	os.Setenv("REDIS_PDB", "0")
-	os.Setenv("POSTGRES_URI", "postgres://sipp11:banshee10@127.0.0.1:25432/hailing")
+	if os.Getenv("REDIS_ADDR") == "" {
+		os.Setenv("REDIS_ADDR", "localhost:6379")
+	}
+	if os.Getenv("REDIS_PASSWORD") == "" {
+		os.Setenv("REDIS_PASSWORD", "")
+	}
+	if os.Getenv("REDIS_PDB") == "" {
+		os.Setenv("REDIS_PDB", "0")
+	}
+	if os.Getenv("POSTGRES_URI") == "" {
+		os.Setenv("POSTGRES_URI", "postgres://sipp11:banshee10@127.0.0.1:25432/hailing")
+	}
 
 	app, err := NewHailingApp(
 		os.Getenv("CHANNEL_SECRET"),
@@ -186,22 +194,35 @@ func TestInitReserve(t *testing.T) {
 	}
 
 	step4 := rec.Waiting
-	if step4 != "final" {
-		t.Errorf("[4] App state is not 'final' != %v", step3)
+	if step4 != "num_of_passengers" {
+		t.Errorf("[4] App state is not 'num_of_passengers' != %v", step4)
 	}
-	// user return answer to "FINAL" or last confirm state
-	// it's actually POSTBACK
+	// user return answer to "NUMBER OF PASSENGERS"
 	step4reply := Reply{
-		Text: "last-step-confirmation",
+		Text: "2",
 	}
 	rec, err = app.ProcessReservationStep(user.LineUserID, step4reply)
 	if err != nil {
 		t.Error("    processing failed: ", err)
 	}
 
+	step5 := rec.Waiting
+	if step5 != "final" {
+		t.Errorf("[5] App state is not 'final' != %v", step3)
+	}
+	// user return answer to "FINAL" or last confirm state
+	// it's actually POSTBACK
+	step5reply := Reply{
+		Text: "last-step-confirmation",
+	}
+	rec, err = app.ProcessReservationStep(user.LineUserID, step5reply)
+	if err != nil {
+		t.Error("    processing failed: ", err)
+	}
+
 	// after this, record should be in DONE state
 	if rec.State != "done" && rec.ReservedAt == step3reply.Datetime {
-		t.Errorf("    variable is not correct != %v", rec)
+		t.Errorf("   variable is not correct != %v", rec)
 	}
 
 	// [4]
