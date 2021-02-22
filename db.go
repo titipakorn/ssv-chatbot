@@ -235,6 +235,21 @@ func (app *HailingApp) SaveTripFeedback(tripID int, rating int) (string, error) 
 	return strconv.Itoa(resultTripID), nil
 }
 
+// SetLanguage save preferred lanague to "user" table
+func (app *HailingApp) SetLanguage(userID uuid.UUID, lang string) (string, error) {
+	var resultID uuid.UUID
+	err := app.pdb.QueryRow(`
+	UPDATE "user" SET "lang" = $2
+	WHERE id=$1
+	RETURNING id
+	`, userID, lang).Scan(&resultID)
+	if err != nil {
+		log.Printf("[save2psql-cancel] %v", err)
+		return "failed", err
+	}
+	return "ok", nil
+}
+
 // GetTripRecordByID returns trip record
 func (app *HailingApp) GetTripRecordByID(tripID int) (*Trip, error) {
 	trip := Trip{}
