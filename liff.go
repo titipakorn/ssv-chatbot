@@ -10,7 +10,8 @@ import (
 	this is user's feedback
 */
 
-func (app *HailingApp) handleLIFFCommand(replyToken string, lineUserID string, reply Reply) error {
+// LIFFHandler handle all commands from LIFF
+func (app *HailingApp) LIFFHandler(replyToken string, lineUserID string, reply Reply) error {
 	text := strings.Replace(reply.Text, "[LIFF]", "", 1)
 	text = strings.TrimSpace(text)
 	text = strings.ToLower(text)
@@ -22,7 +23,7 @@ func (app *HailingApp) handleLIFFCommand(replyToken string, lineUserID string, r
 
 	switch cmds[0] {
 	case "cancel":
-		return app.handleCancel(replyToken, lineUserID)
+		return app.CancelHandler(replyToken, lineUserID)
 	case "feedback":
 		// [0: "feedback" 1:"on" 2:"trip" 3:"<int>" 4:"=>" 5:"<rating>"]
 		if len(cmds) != 6 {
@@ -30,7 +31,7 @@ func (app *HailingApp) handleLIFFCommand(replyToken string, lineUserID string, r
 		}
 		tripID := cmds[3]
 		rating := cmds[5]
-		return app.handleFeedback(replyToken, tripID, rating)
+		return app.FeedbackHandler(replyToken, tripID, rating)
 	}
 	return nil
 }

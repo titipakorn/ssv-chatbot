@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -105,7 +104,7 @@ func (app *HailingApp) extractReplyFromPostback(event *linebot.Event) error {
 			log.Printf("[PostbackExtractor] star-feedback unhandled case : data: %v\n", data)
 			return app.UnhandledCase(event.ReplyToken)
 		}
-		return app.handleFeedback(event.ReplyToken, postbackType[1], postbackType[2])
+		return app.FeedbackHandler(event.ReplyToken, postbackType[1], postbackType[2])
 	case "datetime":
 		layout := "2006-01-02T15:04-07:00"
 		str := fmt.Sprintf("%v+07:00", event.Postback.Params.Datetime)
@@ -178,54 +177,17 @@ func (app *HailingApp) UnhandledCase(replyToken string) error {
 	return nil
 }
 
-func (app *HailingApp) handleCancel(replyToken string, lineUserID string) error {
-	total, err := app.Cancel(lineUserID)
-	if err != nil {
-		errMsg := fmt.Sprintf("%v", err)
-		if _, err := app.bot.ReplyMessage(
-			replyToken,
-			linebot.NewTextMessage(errMsg),
-		).Do(); err != nil {
-			return err
-		}
-	}
-	if total > 0 {
-		msg := fmt.Sprintf("Your reservation cancelled.")
-		if _, err := app.bot.ReplyMessage(
-			replyToken,
-			linebot.NewTextMessage(msg),
-		).Do(); err != nil {
-			return err
-		}
-	}
-	return nil
-
-}
-
-func (app *HailingApp) handleFeedback(replyToken string, tripID string, rating string) error {
-	nRating, _ := strconv.Atoi(rating)
-	tID, _ := strconv.Atoi(tripID)
-	_, err := app.SaveTripFeedback(tID, nRating)
-	if err != nil {
-		return err
-	}
-	msg := fmt.Sprintf("Thank you for your feedback. We hope to see you again.")
-	if _, err := app.bot.ReplyMessage(
-		replyToken,
-		linebot.NewTextMessage(msg),
-	).Do(); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, reply Reply) error {
 	var record *ReservationRecord
 	var err error
 	msgs := []string{"", ""}
 
 	if strings.Contains(reply.Text, "[LIFF]") {
-		return app.handleLIFFCommand(replyToken, lineUserID, reply)
+		return app.LIFFHandler(replyToken, lineUserID, reply)
+	}
+
+	if strings.HasPrefix(reply.Text, "/") {
+		return app.BotCommandHandler(replyToken, lineUserID, reply)
 	}
 
 	// location options
@@ -268,7 +230,7 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 
 	// cancel process
 	if IsThisIn(reply.Text, WordsToCancel) {
-		return app.handleCancel(replyToken, lineUserID)
+		return app.CancelHandler(replyToken, lineUserID)
 	}
 
 	// status process
@@ -1025,4 +987,121 @@ func (app *HailingApp) PushNotification(lineUserID string, messages ...linebot.S
 		log.Printf("[PushNoti] %v", lineUserID)
 	}
 	return nil
+}
+
+// LanguageOptionFlex push Flex message for language options
+func (app *HailingApp) LanguageOptionFlex() linebot.SendingMessage {
+
+	elements := []linebot.FlexComponent{
+		&linebot.TextComponent{
+			Type:   linebot.FlexComponentTypeText,
+			Text:   "Language selector",
+			Weight: linebot.FlexTextWeightTypeBold,
+			Size:   linebot.FlexTextSizeTypeLg,
+		},
+		&linebot.TextComponent{
+			Type:   linebot.FlexComponentTypeText,
+			Text:   "Which one do you prefer?",
+			Wrap:   true,
+			Weight: linebot.FlexTextWeightTypeRegular,
+			Size:   linebot.FlexTextSizeTypeMd,
+		},
+		&linebot.ButtonComponent{
+			Height: linebot.FlexButtonHeightTypeMd,
+			Style:  linebot.FlexButtonStyleTypeLink,
+			Action: linebot.NewPostbackAction(
+				"🇺🇸 English",
+				fmt.Sprintf("/set:language:en"), "", ""),
+		},
+		&linebot.ButtonComponent{
+			Height: linebot.FlexButtonHeightTypeMd,
+			Style:  linebot.FlexButtonStyleTypeLink,
+			Action: linebot.NewPostbackAction(
+				"🇯🇵 Japanese",
+				fmt.Sprintf("/set:language:ja"), "", ""),
+		},
+		&linebot.ButtonComponent{
+			Height: linebot.FlexButtonHeightTypeMd,
+			Style:  linebot.FlexButtonStyleTypeLink,
+			Action: linebot.NewPostbackAction(
+				"🇹🇭 Thai",
+				fmt.Sprintf("/set:language:th"), "", ""),
+		},
+	}
+
+	contents := &linebot.BubbleContainer{
+		Type: linebot.FlexContainerTypeBubble,
+		Body: &linebot.BoxComponent{
+			Type:     linebot.FlexComponentTypeBox,
+			Layout:   linebot.FlexBoxLayoutTypeVertical,
+			Contents: elements,
+		},
+		Footer: &linebot.BoxComponent{
+			Type:   linebot.FlexComponentTypeBox,
+			Layout: linebot.FlexBoxLayoutTypeVertical,
+			Contents: []linebot.FlexComponent{
+				&linebot.SpacerComponent{
+					Type: linebot.FlexComponentTypeSeparator,
+					Size: linebot.FlexSpacerSizeTypeSm,
+				},
+			},
+		},
+	}
+
+	return linebot.NewFlexMessage("Ride confirmation", contents)
+}
+
+// HelpMessageFlex push Flex message for language options
+func (app *HailingApp) HelpMessageFlex() linebot.SendingMessage {
+
+	elements := []linebot.FlexComponent{
+		&linebot.TextComponent{
+			Type:   linebot.FlexComponentTypeText,
+			Text:   "Help",
+			Weight: linebot.FlexTextWeightTypeBold,
+			Size:   linebot.FlexTextSizeTypeLg,
+		},
+		&linebot.TextComponent{
+			Type:   linebot.FlexComponentTypeText,
+			Text:   "list of available commands",
+			Wrap:   true,
+			Weight: linebot.FlexTextWeightTypeRegular,
+			Size:   linebot.FlexTextSizeTypeMd,
+		},
+		&linebot.TextComponent{
+			Type:   linebot.FlexComponentTypeText,
+			Text:   "/help - this command",
+			Wrap:   true,
+			Weight: linebot.FlexTextWeightTypeRegular,
+			Size:   linebot.FlexTextSizeTypeSm,
+		},
+		&linebot.TextComponent{
+			Type:   linebot.FlexComponentTypeText,
+			Text:   "/lang - call language UI picker",
+			Wrap:   true,
+			Weight: linebot.FlexTextWeightTypeRegular,
+			Size:   linebot.FlexTextSizeTypeSm,
+		},
+	}
+
+	contents := &linebot.BubbleContainer{
+		Type: linebot.FlexContainerTypeBubble,
+		Body: &linebot.BoxComponent{
+			Type:     linebot.FlexComponentTypeBox,
+			Layout:   linebot.FlexBoxLayoutTypeVertical,
+			Contents: elements,
+		},
+		Footer: &linebot.BoxComponent{
+			Type:   linebot.FlexComponentTypeBox,
+			Layout: linebot.FlexBoxLayoutTypeVertical,
+			Contents: []linebot.FlexComponent{
+				&linebot.SpacerComponent{
+					Type: linebot.FlexComponentTypeSeparator,
+					Size: linebot.FlexSpacerSizeTypeSm,
+				},
+			},
+		},
+	}
+
+	return linebot.NewFlexMessage("Ride confirmation", contents)
 }
