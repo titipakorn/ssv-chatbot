@@ -18,6 +18,7 @@ type HailingApp struct {
 	pdb         *sql.DB
 	appBaseURL  string
 	downloadDir string
+	i18nBundle  *i18n.Bundle
 }
 
 // NewHailingApp function
@@ -61,11 +62,15 @@ func NewHailingApp(channelSecret, channelToken, appBaseURL string) (*HailingApp,
 
 	psqlDB, err := sql.Open("postgres", postgresURI)
 
+	bundle := i18n.NewBundle(language.English)
+	bundle.RegisterUnmarshalFunc("toml", toml.Unmarshal)
+
 	return &HailingApp{
 		bot:         bot,
 		rdb:         rdb,
 		pdb:         psqlDB,
 		appBaseURL:  appBaseURL,
 		downloadDir: downloadDir,
+		i18nBundle:  bundle,
 	}, nil
 }

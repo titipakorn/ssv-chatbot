@@ -8,6 +8,7 @@ require (
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lib/pq v1.7.0
 	github.com/line/line-bot-sdk-go v7.4.0+incompatible
+	github.com/nicksnyder/go-i18n/v2 v2.1.2 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/onsi/ginkgo v1.14.0 // indirect
 	github.com/paulmach/orb v0.1.6

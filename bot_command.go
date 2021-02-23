@@ -16,6 +16,14 @@ func (app *HailingApp) BotCommandHandler(replyToken string, lineUserID string, r
 	if len(cmds) == 0 {
 		return nil
 	}
+	user, err := app.FindOrCreateUser(lineUserID)
+	if err != nil {
+		return app.replyText(replyToken, "User not found")
+	}
+
+	lang := user.Language
+	localizer := i18n.NewLocalizer(app.i18nBundle, lang)
+
 	cmd1 := strings.TrimPrefix(cmds[0], "/")
 	// https://golang.org/pkg/regexp/syntax/
 	// r3 := regexp.MustCompile(`/(?P<cmd>\w+)\s+?(?P<subcmd>\w+)\s+?(?P<val>\w+)`)
@@ -23,19 +31,39 @@ func (app *HailingApp) BotCommandHandler(replyToken string, lineUserID string, r
 	// text := strings.Replace(reply.Text, "[LIFF]", "", 1)
 	// text = strings.TrimSpace(text)
 	// text = strings.ToLower(text)
+	msgs := []linebot.SendingMessage{}
 
 	switch cmd1 {
+	case "get":
+		// TODO: this is a different beast which will need to verify subcommand
+		// 		 for other steps
+		break
+	case "set":
+		// TODO: this is a different beast which will need to verify subcommand
+		// 		 for other steps
+		break
 	case "language":
 	case "lang":
-		// TODO: return language options as picker
-		return app.CancelHandler(replyToken, lineUserID)
+		langFlex := app.LanguageOptionFlex()
+		msgs = append(msgs, langFlex)
 	case "help":
-		return app.HelpHandler(replyToken, lineUserID)
+		helpFlex := app.HelpMessageFlex()
+		msgs = append(msgs, helpFlex)
 	}
-	msg := fmt.Sprintf("Command unavailable")
+	if len(msgs) == 0 {
+		// if no other command, then return this
+		msgCommandUnavailable := localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{
+				ID:    "CommandUnavailable",
+				Other: "Command unavailable",
+			},
+		})
+		txtMsg := linebot.NewTextMessage(msgCommandUnavailable)
+		msgs = append(msgs, txtMsg)
+	}
 	if _, err := app.bot.ReplyMessage(
 		replyToken,
-		linebot.NewTextMessage(msg),
+		msgs...,
 	).Do(); err != nil {
 		return err
 	}

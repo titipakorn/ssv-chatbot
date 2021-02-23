@@ -988,3 +988,120 @@ func (app *HailingApp) PushNotification(lineUserID string, messages ...linebot.S
 	}
 	return nil
 }
+
+// LanguageOptionFlex push Flex message for language options
+func (app *HailingApp) LanguageOptionFlex() linebot.SendingMessage {
+
+	elements := []linebot.FlexComponent{
+		&linebot.TextComponent{
+			Type:   linebot.FlexComponentTypeText,
+			Text:   "Language selector",
+			Weight: linebot.FlexTextWeightTypeBold,
+			Size:   linebot.FlexTextSizeTypeLg,
+		},
+		&linebot.TextComponent{
+			Type:   linebot.FlexComponentTypeText,
+			Text:   "Which one do you prefer?",
+			Wrap:   true,
+			Weight: linebot.FlexTextWeightTypeRegular,
+			Size:   linebot.FlexTextSizeTypeMd,
+		},
+		&linebot.ButtonComponent{
+			Height: linebot.FlexButtonHeightTypeMd,
+			Style:  linebot.FlexButtonStyleTypeLink,
+			Action: linebot.NewPostbackAction(
+				"🇺🇸 English",
+				fmt.Sprintf("/set:language:en"), "", ""),
+		},
+		&linebot.ButtonComponent{
+			Height: linebot.FlexButtonHeightTypeMd,
+			Style:  linebot.FlexButtonStyleTypeLink,
+			Action: linebot.NewPostbackAction(
+				"🇯🇵 Japanese",
+				fmt.Sprintf("/set:language:ja"), "", ""),
+		},
+		&linebot.ButtonComponent{
+			Height: linebot.FlexButtonHeightTypeMd,
+			Style:  linebot.FlexButtonStyleTypeLink,
+			Action: linebot.NewPostbackAction(
+				"🇹🇭 Thai",
+				fmt.Sprintf("/set:language:th"), "", ""),
+		},
+	}
+
+	contents := &linebot.BubbleContainer{
+		Type: linebot.FlexContainerTypeBubble,
+		Body: &linebot.BoxComponent{
+			Type:     linebot.FlexComponentTypeBox,
+			Layout:   linebot.FlexBoxLayoutTypeVertical,
+			Contents: elements,
+		},
+		Footer: &linebot.BoxComponent{
+			Type:   linebot.FlexComponentTypeBox,
+			Layout: linebot.FlexBoxLayoutTypeVertical,
+			Contents: []linebot.FlexComponent{
+				&linebot.SpacerComponent{
+					Type: linebot.FlexComponentTypeSeparator,
+					Size: linebot.FlexSpacerSizeTypeSm,
+				},
+			},
+		},
+	}
+
+	return linebot.NewFlexMessage("Ride confirmation", contents)
+}
+
+// HelpMessageFlex push Flex message for language options
+func (app *HailingApp) HelpMessageFlex() linebot.SendingMessage {
+
+	elements := []linebot.FlexComponent{
+		&linebot.TextComponent{
+			Type:   linebot.FlexComponentTypeText,
+			Text:   "Help",
+			Weight: linebot.FlexTextWeightTypeBold,
+			Size:   linebot.FlexTextSizeTypeLg,
+		},
+		&linebot.TextComponent{
+			Type:   linebot.FlexComponentTypeText,
+			Text:   "list of available commands",
+			Wrap:   true,
+			Weight: linebot.FlexTextWeightTypeRegular,
+			Size:   linebot.FlexTextSizeTypeMd,
+		},
+		&linebot.TextComponent{
+			Type:   linebot.FlexComponentTypeText,
+			Text:   "/help - this command",
+			Wrap:   true,
+			Weight: linebot.FlexTextWeightTypeRegular,
+			Size:   linebot.FlexTextSizeTypeSm,
+		},
+		&linebot.TextComponent{
+			Type:   linebot.FlexComponentTypeText,
+			Text:   "/lang - call language UI picker",
+			Wrap:   true,
+			Weight: linebot.FlexTextWeightTypeRegular,
+			Size:   linebot.FlexTextSizeTypeSm,
+		},
+	}
+
+	contents := &linebot.BubbleContainer{
+		Type: linebot.FlexContainerTypeBubble,
+		Body: &linebot.BoxComponent{
+			Type:     linebot.FlexComponentTypeBox,
+			Layout:   linebot.FlexBoxLayoutTypeVertical,
+			Contents: elements,
+		},
+		Footer: &linebot.BoxComponent{
+			Type:   linebot.FlexComponentTypeBox,
+			Layout: linebot.FlexBoxLayoutTypeVertical,
+			Contents: []linebot.FlexComponent{
+				&linebot.SpacerComponent{
+					Type: linebot.FlexComponentTypeSeparator,
+					Size: linebot.FlexSpacerSizeTypeSm,
+				},
+			},
+		},
+	}
+
+	return linebot.NewFlexMessage("Ride confirmation", contents)
+}
