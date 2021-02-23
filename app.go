@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -78,4 +79,15 @@ func NewHailingApp(channelSecret, channelToken, appBaseURL string) (*HailingApp,
 		downloadDir: downloadDir,
 		i18nBundle:  bundle,
 	}, nil
+}
+
+// Localizer returns both user and localizer which is helpful for all i18n text
+func (app *HailingApp) Localizer(lineUserID string) (*User, *i18n.Localizer, error) {
+	user, err := app.FindOrCreateUser(lineUserID)
+	if err != nil {
+		return nil, nil, errors.New("User not found")
+	}
+	lang := user.Language
+	localizer := i18n.NewLocalizer(app.i18nBundle, lang)
+	return user, localizer, nil
 }

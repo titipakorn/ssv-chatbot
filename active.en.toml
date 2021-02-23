@@ -1,3 +1,5 @@
+CancelHandlerMessage = "Your reservation cancelled."
 CommandUnavailable = "Command unavailable"
+FeedbackHandlerMessage = "Thank you for your feedback. We hope to see you again."
 LanguageHandlerSame = "Your language is already {{.Lang}}."
 LanguageHandlerSet = "Your language set to {{.Lang}}."

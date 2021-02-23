@@ -104,7 +104,7 @@ func (app *HailingApp) extractReplyFromPostback(event *linebot.Event) error {
 			log.Printf("[PostbackExtractor] star-feedback unhandled case : data: %v\n", data)
 			return app.UnhandledCase(event.ReplyToken)
 		}
-		return app.FeedbackHandler(event.ReplyToken, postbackType[1], postbackType[2])
+		return app.FeedbackHandler(event.ReplyToken, lineUserID, postbackType[1], postbackType[2])
 	case "datetime":
 		layout := "2006-01-02T15:04-07:00"
 		str := fmt.Sprintf("%v+07:00", event.Postback.Params.Datetime)
