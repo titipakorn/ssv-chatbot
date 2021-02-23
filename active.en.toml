@@ -1,0 +1,3 @@
+CommandUnavailable = "Command unavailable"
+LanguageHandlerSame = "Your language is already {{.Lang}}."
+LanguageHandlerSet = "Your language set to {{.Lang}}."

@@ -1,0 +1,11 @@
+[CommandUnavailable]
+hash = "sha1-bfed234d466faaa491252c3b967ea72e8febeb62"
+other = "ไม่พบคำสั่งนี้"
+
+[LanguageHandlerSame]
+hash = "sha1-d4201bc6bf738be94f7f9f60025695136ac8623c"
+other = "ภาษาที่ตั้งนั้นเหมือนเดิม: {{.Lang}}"
+
+[LanguageHandlerSet]
+hash = "sha1-aab5ce35b6cea5532c4299bf8a461ba9c48aac2e"
+other = "ตั้งค่าให้ {{.Lang}} เป็นภาษาหลักแล้ว"

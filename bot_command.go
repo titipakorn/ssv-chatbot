@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/line/line-bot-sdk-go/linebot"
+	"github.com/nicksnyder/go-i18n/v2/i18n"
 )
 
 // BotCommandHandler handle all commands from LIFF
@@ -88,18 +89,38 @@ func (app *HailingApp) LanguageHandler(replyToken string, lineUserID string, lan
 			return err
 		}
 	}
+	userLang := user.Language
+	localizer := i18n.NewLocalizer(app.i18nBundle, userLang)
+	msgLanguageTheSame := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "LanguageHandlerSame",
+			Other: "Your language is already {{.Lang}}.",
+		},
+		TemplateData: map[string]string{
+			"Lang": lang,
+		},
+	})
+
 	if user.Language == lang {
-		errMsg := fmt.Sprintf("Your language is already %s", lang)
 		if _, err := app.bot.ReplyMessage(
 			replyToken,
-			linebot.NewTextMessage(errMsg),
+			linebot.NewTextMessage(msgLanguageTheSame),
 		).Do(); err != nil {
 			return err
 		}
 	}
+	msgLanguageSet := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "LanguageHandlerSet",
+			Other: "Your language set to {{.Lang}}.",
+		},
+		TemplateData: map[string]string{
+			"Lang": lang,
+		},
+	})
 	// this is supposed to be database-related command
 	_, err = app.SetLanguage(user.ID, lang)
-	msg := fmt.Sprintf("Your language set to %v", lang)
+	msg := msgLanguageSet
 	if err != nil {
 		msg = fmt.Sprintf("%v", err)
 	}
