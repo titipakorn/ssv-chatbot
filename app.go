@@ -2,13 +2,17 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
 
+	"github.com/BurntSushi/toml"
 	"github.com/go-redis/redis/v7"
 	_ "github.com/lib/pq"
 	"github.com/line/line-bot-sdk-go/linebot"
+	"github.com/nicksnyder/go-i18n/v2/i18n"
+	"golang.org/x/text/language"
 )
 
 // HailingApp app
@@ -64,6 +68,8 @@ func NewHailingApp(channelSecret, channelToken, appBaseURL string) (*HailingApp,
 
 	bundle := i18n.NewBundle(language.English)
 	bundle.RegisterUnmarshalFunc("toml", toml.Unmarshal)
+	bundle.MustLoadMessageFile("active.th.toml")
+	bundle.MustLoadMessageFile("active.ja.toml")
 
 	return &HailingApp{
 		bot:         bot,
@@ -73,4 +79,15 @@ func NewHailingApp(channelSecret, channelToken, appBaseURL string) (*HailingApp,
 		downloadDir: downloadDir,
 		i18nBundle:  bundle,
 	}, nil
+}
+
+// Localizer returns both user and localizer which is helpful for all i18n text
+func (app *HailingApp) Localizer(lineUserID string) (*User, *i18n.Localizer, error) {
+	user, err := app.FindOrCreateUser(lineUserID)
+	if err != nil {
+		return nil, nil, errors.New("User not found")
+	}
+	lang := user.Language
+	localizer := i18n.NewLocalizer(app.i18nBundle, lang)
+	return user, localizer, nil
 }

@@ -11,7 +11,7 @@ var WordsToInit = []string{"call the cab", "i need a ride", "ride now", "reserve
 var WordsToCancel = []string{"!reset", "reset", "cancel", "ยกเลิก", "start over"}
 
 // WordsToAskForStatus is an array of eligible words for asking reservation status
-var WordsToAskForStatus = []string{"!status", "status"}
+var WordsToAskForStatus = []string{"!status", "status", "/status"}
 
 // TargetPlaces is an array of eligible words for places in the service
 var TargetPlaces = []string{"condo a", "citi resort", "bts phromphong"}

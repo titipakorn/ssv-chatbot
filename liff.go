@@ -31,7 +31,7 @@ func (app *HailingApp) LIFFHandler(replyToken string, lineUserID string, reply R
 		}
 		tripID := cmds[3]
 		rating := cmds[5]
-		return app.FeedbackHandler(replyToken, tripID, rating)
+		return app.FeedbackHandler(replyToken, lineUserID, tripID, rating)
 	}
 	return nil
 }

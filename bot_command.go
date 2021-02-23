@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/line/line-bot-sdk-go/linebot"
+	"github.com/nicksnyder/go-i18n/v2/i18n"
 )
 
 // BotCommandHandler handle all commands from LIFF
@@ -16,21 +17,11 @@ func (app *HailingApp) BotCommandHandler(replyToken string, lineUserID string, r
 	if len(cmds) == 0 {
 		return nil
 	}
-	user, err := app.FindOrCreateUser(lineUserID)
+	_, localizer, err := app.Localizer(lineUserID)
 	if err != nil {
-		return app.replyText(replyToken, "User not found")
+		return app.replyText(replyToken, err.Error())
 	}
-
-	lang := user.Language
-	localizer := i18n.NewLocalizer(app.i18nBundle, lang)
-
 	cmd1 := strings.TrimPrefix(cmds[0], "/")
-	// https://golang.org/pkg/regexp/syntax/
-	// r3 := regexp.MustCompile(`/(?P<cmd>\w+)\s+?(?P<subcmd>\w+)\s+?(?P<val>\w+)`)
-	// r2 := regexp.MustCompile(`/(?P<cmd>.+)\s+(?P<subcmd>\w+?)`)
-	// text := strings.Replace(reply.Text, "[LIFF]", "", 1)
-	// text = strings.TrimSpace(text)
-	// text = strings.ToLower(text)
 	msgs := []linebot.SendingMessage{}
 
 	switch cmd1 {
@@ -44,10 +35,10 @@ func (app *HailingApp) BotCommandHandler(replyToken string, lineUserID string, r
 		break
 	case "language":
 	case "lang":
-		langFlex := app.LanguageOptionFlex()
+		langFlex := app.LanguageOptionFlex(localizer)
 		msgs = append(msgs, langFlex)
 	case "help":
-		helpFlex := app.HelpMessageFlex()
+		helpFlex := app.HelpMessageFlex(localizer)
 		msgs = append(msgs, helpFlex)
 	}
 	if len(msgs) == 0 {
@@ -78,38 +69,44 @@ func (app *HailingApp) HelpHandler(replyToken string, lineUserID string) error {
 
 // LanguageHandler shows the available command
 func (app *HailingApp) LanguageHandler(replyToken string, lineUserID string, lang string) error {
-	user, err := app.FindOrCreateUser(lineUserID)
+	user, localizer, err := app.Localizer(lineUserID)
 	if err != nil {
-		errMsg := fmt.Sprintf("%v", err)
-		if _, err := app.bot.ReplyMessage(
-			replyToken,
-			linebot.NewTextMessage(errMsg),
-		).Do(); err != nil {
-			return err
-		}
+		return app.replyText(err.Error())
 	}
+	msgLanguageTheSame := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "LanguageIsTheSame",
+			Other: "Your language is already {{.Lang}}.",
+		},
+		TemplateData: map[string]string{
+			"Lang": lang,
+		},
+	})
+
 	if user.Language == lang {
-		errMsg := fmt.Sprintf("Your language is already %s", lang)
 		if _, err := app.bot.ReplyMessage(
 			replyToken,
-			linebot.NewTextMessage(errMsg),
+			linebot.NewTextMessage(msgLanguageTheSame),
 		).Do(); err != nil {
 			return err
 		}
 	}
+	msgLanguageSet := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "LanguageSetTo",
+			Other: "Your language set to {{.Lang}}.",
+		},
+		TemplateData: map[string]string{
+			"Lang": lang,
+		},
+	})
 	// this is supposed to be database-related command
 	_, err = app.SetLanguage(user.ID, lang)
-	msg := fmt.Sprintf("Your language set to %v", lang)
+	msg := msgLanguageSet
 	if err != nil {
 		msg = fmt.Sprintf("%v", err)
 	}
-	if _, err := app.bot.ReplyMessage(
-		replyToken,
-		linebot.NewTextMessage(msg),
-	).Do(); err != nil {
-		return err
-	}
-	return nil
+	return app.replyText(replyToken, msg)
 }
 
 // CancelHandler takes care of the reservation cancellation
@@ -117,40 +114,39 @@ func (app *HailingApp) CancelHandler(replyToken string, lineUserID string) error
 	total, err := app.Cancel(lineUserID)
 	if err != nil {
 		errMsg := fmt.Sprintf("%v", err)
-		if _, err := app.bot.ReplyMessage(
-			replyToken,
-			linebot.NewTextMessage(errMsg),
-		).Do(); err != nil {
-			return err
-		}
+		return app.replyText(replyToken, errMsg)
+	}
+	_, localizer, err := app.Localizer(lineUserID)
+	cancelText := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "ReservationCancelled",
+			Other: "Your reservation cancelled.",
+		},
+	})
+	if err != nil {
+		return app.replyText(replyToken, err.Error())
 	}
 	if total > 0 {
-		msg := fmt.Sprintf("Your reservation cancelled.")
-		if _, err := app.bot.ReplyMessage(
-			replyToken,
-			linebot.NewTextMessage(msg),
-		).Do(); err != nil {
-			return err
-		}
+		return app.replyText(replyToken, cancelText)
 	}
 	return nil
 
 }
 
 // FeedbackHandler takes care of the reservation feedback
-func (app *HailingApp) FeedbackHandler(replyToken string, tripID string, rating string) error {
+func (app *HailingApp) FeedbackHandler(replyToken string, lineUserID string, tripID string, rating string) error {
 	nRating, _ := strconv.Atoi(rating)
 	tID, _ := strconv.Atoi(tripID)
 	_, err := app.SaveTripFeedback(tID, nRating)
 	if err != nil {
 		return err
 	}
-	msg := fmt.Sprintf("Thank you for your feedback. We hope to see you again.")
-	if _, err := app.bot.ReplyMessage(
-		replyToken,
-		linebot.NewTextMessage(msg),
-	).Do(); err != nil {
-		return err
-	}
-	return nil
+	_, localizer, err := app.Localizer(lineUserID)
+	feedbackText := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "ThankYouSeeYouAgain",
+			Other: "Thank you for your feedback. We hope to see you again.",
+		},
+	})
+	return app.replyText(replyToken, feedbackText)
 }
