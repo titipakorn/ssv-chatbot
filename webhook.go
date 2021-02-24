@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/line/line-bot-sdk-go/linebot"
+	"github.com/nicksnyder/go-i18n/v2/i18n"
 )
 
 // EventData struct
@@ -78,21 +79,49 @@ func (app *HailingApp) Webhook(w http.ResponseWriter, req *http.Request) {
 	oldData := t.Event.Data.Old
 	newData := t.Event.Data.New
 	user, _ := app.FindUserByID(newData.UserID)
+	localizer := i18n.NewLocalizer(app.i18nBundle, user.Language)
 	bkk, _ := time.LoadLocation("Asia/Bangkok")
 	if oldData.AcceptedAt == nil && newData.AcceptedAt != nil {
 		// notify
 		bkkReservedTime := newData.ReservedAt.In(bkk)
-		hhmm := fmt.Sprintf("at %s", bkkReservedTime.Format(time.Kitchen))
+		hhmm := localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{
+				ID:    "HHMM",
+				Other: "at {{.hhmm}}.",
+			},
+			TemplateData: map[string]string{
+				"hhmm": bkkReservedTime.Format(time.Kitchen),
+			},
+		})
 		if time.Now().After(bkkReservedTime) {
-			hhmm = "asap"
+			hhmm = localizer.MustLocalize(&i18n.LocalizeConfig{
+				DefaultMessage: &i18n.Message{
+					ID:    "ASAP",
+					Other: "asap",
+				},
+			})
 		}
-		txt := fmt.Sprintf("Driver accepts the job. Please meet at designated location %s", hhmm)
+		txt := localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{
+				ID:    "DriverAcceptedJob",
+				Other: "Driver accepts the job. Please meet at designated location {{.LocalTime}}",
+			},
+			TemplateData: map[string]string{
+				"LocalTime": hhmm,
+			},
+		})
 		msg := linebot.NewTextMessage(txt)
 		app.PushNotification(user.LineUserID, msg)
 
 	} else if oldData.PickedUpAt == nil && newData.PickedUpAt != nil {
 		// Do not need to do anything
-		msg := linebot.NewTextMessage("Welcome aboard!")
+		welcome := localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{
+				ID:    "WelcomeAboard",
+				Other: "Welcome aboard!",
+			},
+		})
+		msg := linebot.NewTextMessage(welcome)
 		app.PushNotification(user.LineUserID, msg)
 
 	} else if oldData.DroppedOffAt == nil && newData.DroppedOffAt != nil {
@@ -100,7 +129,7 @@ func (app *HailingApp) Webhook(w http.ResponseWriter, req *http.Request) {
 		// msg := linebot.NewTextMessage("Ride is done, any feedback?")
 		// TODO: should get tripID and pass along too
 		tripID := newData.ID
-		msg := app.StarFeedbackFlex(tripID)
+		msg := app.StarFeedbackFlex(tripID, localizer)
 		app.PushNotification(user.LineUserID, msg)
 	}
 

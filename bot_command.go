@@ -22,12 +22,6 @@ func (app *HailingApp) BotCommandHandler(replyToken string, lineUserID string, r
 		return app.replyText(replyToken, err.Error())
 	}
 	cmd1 := strings.TrimPrefix(cmds[0], "/")
-	// https://golang.org/pkg/regexp/syntax/
-	// r3 := regexp.MustCompile(`/(?P<cmd>\w+)\s+?(?P<subcmd>\w+)\s+?(?P<val>\w+)`)
-	// r2 := regexp.MustCompile(`/(?P<cmd>.+)\s+(?P<subcmd>\w+?)`)
-	// text := strings.Replace(reply.Text, "[LIFF]", "", 1)
-	// text = strings.TrimSpace(text)
-	// text = strings.ToLower(text)
 	msgs := []linebot.SendingMessage{}
 
 	switch cmd1 {
@@ -41,10 +35,10 @@ func (app *HailingApp) BotCommandHandler(replyToken string, lineUserID string, r
 		break
 	case "language":
 	case "lang":
-		langFlex := app.LanguageOptionFlex()
+		langFlex := app.LanguageOptionFlex(localizer)
 		msgs = append(msgs, langFlex)
 	case "help":
-		helpFlex := app.HelpMessageFlex()
+		helpFlex := app.HelpMessageFlex(localizer)
 		msgs = append(msgs, helpFlex)
 	}
 	if len(msgs) == 0 {
@@ -81,7 +75,7 @@ func (app *HailingApp) LanguageHandler(replyToken string, lineUserID string, lan
 	}
 	msgLanguageTheSame := localizer.MustLocalize(&i18n.LocalizeConfig{
 		DefaultMessage: &i18n.Message{
-			ID:    "LanguageHandlerSame",
+			ID:    "LanguageIsTheSame",
 			Other: "Your language is already {{.Lang}}.",
 		},
 		TemplateData: map[string]string{
@@ -99,7 +93,7 @@ func (app *HailingApp) LanguageHandler(replyToken string, lineUserID string, lan
 	}
 	msgLanguageSet := localizer.MustLocalize(&i18n.LocalizeConfig{
 		DefaultMessage: &i18n.Message{
-			ID:    "LanguageHandlerSet",
+			ID:    "LanguageSetTo",
 			Other: "Your language set to {{.Lang}}.",
 		},
 		TemplateData: map[string]string{
@@ -125,7 +119,7 @@ func (app *HailingApp) CancelHandler(replyToken string, lineUserID string) error
 	_, localizer, err := app.Localizer(lineUserID)
 	cancelText := localizer.MustLocalize(&i18n.LocalizeConfig{
 		DefaultMessage: &i18n.Message{
-			ID:    "CancelHandlerMessage",
+			ID:    "ReservationCancelled",
 			Other: "Your reservation cancelled.",
 		},
 	})
@@ -150,7 +144,7 @@ func (app *HailingApp) FeedbackHandler(replyToken string, lineUserID string, tri
 	_, localizer, err := app.Localizer(lineUserID)
 	feedbackText := localizer.MustLocalize(&i18n.LocalizeConfig{
 		DefaultMessage: &i18n.Message{
-			ID:    "FeedbackHandlerMessage",
+			ID:    "ThankYouSeeYouAgain",
 			Other: "Thank you for your feedback. We hope to see you again.",
 		},
 	})

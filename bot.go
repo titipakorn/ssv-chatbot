@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/line/line-bot-sdk-go/linebot"
+	"github.com/nicksnyder/go-i18n/v2/i18n"
 )
 
 /* This bot will take care of message coming through line bot basically I find that there are 2 types we will have
@@ -190,13 +191,24 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 		return app.BotCommandHandler(replyToken, lineUserID, reply)
 	}
 
+	_, localizer, err := app.Localizer(lineUserID)
+	if err != nil {
+		return app.replyText(err.Error())
+	}
+
 	// location options
 	if reply.Text == "location-options" {
+		askLocation := localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{
+				ID:    "AskForLocation",
+				Other: "Or send me your location!",
+			},
+		})
 		log.Printf("[handleNextStep] location-option\n")
 		if _, err := app.bot.ReplyMessage(
 			replyToken,
-			app.LocationOptionFlex(),
-			linebot.NewTextMessage("Or send me your location!").
+			app.LocationOptionFlex(localizer),
+			linebot.NewTextMessage(askLocation).
 				WithQuickReplies(linebot.NewQuickReplyItems(
 					linebot.NewQuickReplyButton(
 						app.appBaseURL+"/static/quick/pin.png",
@@ -211,6 +223,12 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 
 	// change pickup time
 	if reply.Text == "modify-pickup-time" {
+		nothingChanged := localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{
+				ID:    "NothingChanged",
+				Other: "Error, nothing changed",
+			},
+		})
 		// TODO: deal with this case -- which I am not sure how yet.
 		record, err = app.ProcessReservationStep(lineUserID, reply)
 		if err != nil {
@@ -219,7 +237,7 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 			// TODO: since it's "done" state, we need to return Message here
 			if _, err := app.bot.ReplyMessage(
 				replyToken,
-				linebot.NewTextMessage("Error, nothing changed"),
+				linebot.NewTextMessage(nothingChanged),
 				linebot.NewTextMessage(fmt.Sprintf("%v", err)),
 			).Do(); err != nil {
 				return err
@@ -233,6 +251,37 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 		return app.CancelHandler(replyToken, lineUserID)
 	}
 
+	initLine := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "RideInitLine",
+			Other: "Need a ride now?",
+		},
+	})
+	yes := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "Yes",
+			Other: "Yes",
+		},
+	})
+	confirm := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "RideConfirmation",
+			Other: "Ride confirmation",
+		},
+	})
+	rideIncompleted := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "ReservationIncompleted",
+			Other: "The reservation isn't completed yet.",
+		},
+	})
+	rideCompleted := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "RideReservationCompleted",
+			Other: "Your ride reservation is done.",
+		},
+	})
+
 	// status process
 	if IsThisIn(reply.Text, WordsToAskForStatus) {
 		record, err = app.FindRecord(lineUserID)
@@ -245,7 +294,7 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 			if _, err2 := app.bot.ReplyMessage(
 				replyToken,
 				linebot.NewTextMessage(fmt.Sprintf("%v", errMsg)),
-				ConfirmDialog("Need a ride now?", "Yes", "init"),
+				ConfirmDialog(initLine, yes, "init"),
 			).Do(); err2 != nil {
 				return err2
 			}
@@ -258,15 +307,15 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 			// msg := fmt.Sprintf("Your reservation detail is here [%v]", record)
 			if _, err := app.bot.ReplyMessage(
 				replyToken,
-				record.RecordConfirmFlex("Ride confirmation"),
+				record.RecordConfirmFlex(confirm, localizer),
 			).Do(); err != nil {
 				return err
 			}
 			return nil
 		}
 		// if it's not done, let this go through regular process
-		msgs[0] = "The reservation isn't completed yet."
-		return app.replyQuestion(replyToken, record, msgs...)
+		msgs[0] = rideIncompleted
+		return app.replyQuestion(replyToken, localizer, record, msgs...)
 	}
 
 	// initial state
@@ -285,7 +334,7 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 			if _, err2 := app.bot.ReplyMessage(
 				replyToken,
 				linebot.NewTextMessage(fmt.Sprintf("%v", err)),
-				ConfirmDialog("Need a ride now?", "Yes", "init"),
+				ConfirmDialog(initLine, yes, "init"),
 			).Do(); err2 != nil {
 				return err2
 			}
@@ -305,20 +354,20 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 		// this need special care
 		if _, err := app.bot.ReplyMessage(
 			replyToken,
-			linebot.NewTextMessage("Your ride reservation is done."),
-			record.RecordConfirmFlex("Ride confirmation"),
+			linebot.NewTextMessage(rideCompleted),
+			record.RecordConfirmFlex(confirm, localizer),
 		).Do(); err != nil {
 			return err
 		}
 		return nil
 	}
-	return app.replyQuestion(replyToken, record, msgs...)
+	return app.replyQuestion(replyToken, localizer, record, msgs...)
 }
 
-func (app *HailingApp) replyQuestion(replyToken string, record *ReservationRecord, msgs ...string) error {
+func (app *HailingApp) replyQuestion(replyToken string, localizer *i18n.Localizer, record *ReservationRecord, msgs ...string) error {
 	question := record.QuestionToAsk()
 	if question.YesInput == true {
-		return app.replyFinalStep(replyToken, record)
+		return app.replyFinalStep(replyToken, localizer, record)
 	}
 	if question.Text == "When?" {
 		return app.replyTravelTimeOptionsAndWhen(replyToken, record, question)
@@ -360,14 +409,13 @@ func (app *HailingApp) replyTravelTimeOptionsAndWhen(replyToken string, record *
 	return nil
 }
 
-func (app *HailingApp) replyFinalStep(replyToken string, record *ReservationRecord) error {
+func (app *HailingApp) replyFinalStep(replyToken string, localizer *i18n.Localizer, record *ReservationRecord) error {
 
 	btnAction := linebot.NewPostbackAction("Confirm", "confirm", "", "")
 	if _, err := app.bot.ReplyMessage(
 		replyToken,
 		// linebot.NewTextMessage(optionTxt),
-		app.EstimatedTravelTimeFlex(record, btnAction),
-		// record.RecordConfirmFlex("Please check information", button),
+		app.EstimatedTravelTimeFlex(record, btnAction, localizer),
 	).Do(); err != nil {
 		return err
 	}
@@ -460,17 +508,30 @@ func (app *HailingApp) replyMessage(replyToken string, messages ...linebot.Sendi
 }
 
 // LocationOptionFlex to send location options
-func (app *HailingApp) LocationOptionFlex() linebot.SendingMessage {
+func (app *HailingApp) LocationOptionFlex(localizer *i18n.Localizer) linebot.SendingMessage {
 	locs, err := app.GetLocations(10)
 	if err != nil {
 		log.Printf("[LocationOptionFlex] db failed: %v\n", err)
 		return nil
 	}
 
+	picker := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "PickFromListBelow",
+			Other: "Pick from the list below",
+		},
+	})
+	altText := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "LocationOptions",
+			Other: "Location options",
+		},
+	})
+
 	items := []linebot.FlexComponent{
 		&linebot.TextComponent{
 			Type:   linebot.FlexComponentTypeText,
-			Text:   "Pick from the list below",
+			Text:   picker,
 			Weight: linebot.FlexTextWeightTypeBold,
 			Size:   linebot.FlexTextSizeTypeMd,
 		}}
@@ -493,7 +554,7 @@ func (app *HailingApp) LocationOptionFlex() linebot.SendingMessage {
 			Contents: items,
 		},
 	}
-	return linebot.NewFlexMessage("Location options", contents)
+	return linebot.NewFlexMessage(altText, contents)
 }
 
 // ConfirmDialog returns sendingMessage to ask if user want to start the process
@@ -566,26 +627,67 @@ func (app *HailingApp) travelOption(icon string, distance string, duration strin
 }
 
 // StarFeedbackFlex lets user rating the service
-func (app *HailingApp) StarFeedbackFlex(tripID int) linebot.SendingMessage {
+func (app *HailingApp) StarFeedbackFlex(tripID int, localizer *i18n.Localizer) linebot.SendingMessage {
 	trip, err := app.GetTripRecordByID(tripID)
 	if err != nil {
 		return nil
 	}
 
+	title := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "RideIsDone",
+			Other: "The ride is done.",
+		},
+	})
+	question := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "HowDoYouLikeService",
+			Other: "How do you like our service this time?",
+		},
+	})
+	pickup := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "Pickup",
+			Other: "Pickup",
+		},
+	})
+	to := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "To",
+			Other: "To",
+		},
+	})
+	durationLabel := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "Duration",
+			Other: "Duration",
+		},
+	})
+
 	flexLabel := 3
 	flexDesc := 7
 	duration := trip.DroppedOffAt.Sub(*trip.PickedUpAt)
 
+	travelMin := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "TravelMinute",
+			Other: "{{.Min}} min",
+		},
+		TemplateData: map[string]string{
+			"Min": fmt.Sprintf("%.0f", duration.Minutes()),
+		},
+	})
+
 	elements := []linebot.FlexComponent{
 		&linebot.TextComponent{
 			Type:   linebot.FlexComponentTypeText,
-			Text:   "The ride is done.",
+			Text:   title,
 			Weight: linebot.FlexTextWeightTypeBold,
 			Size:   linebot.FlexTextSizeTypeLg,
 		},
 		&linebot.TextComponent{
 			Type:   linebot.FlexComponentTypeText,
-			Text:   "How do you like our service this time?",
+			Text:   question,
 			Wrap:   true,
 			Weight: linebot.FlexTextWeightTypeRegular,
 			Size:   linebot.FlexTextSizeTypeMd,
@@ -599,7 +701,7 @@ func (app *HailingApp) StarFeedbackFlex(tripID int) linebot.SendingMessage {
 			Contents: []linebot.FlexComponent{
 				&linebot.TextComponent{
 					Type:   linebot.FlexComponentTypeText,
-					Text:   "Pickup",
+					Text:   pickup,
 					Weight: linebot.FlexTextWeightTypeRegular,
 					Flex:   &flexLabel,
 					Size:   linebot.FlexTextSizeTypeSm,
@@ -622,7 +724,7 @@ func (app *HailingApp) StarFeedbackFlex(tripID int) linebot.SendingMessage {
 			Contents: []linebot.FlexComponent{
 				&linebot.TextComponent{
 					Type:   linebot.FlexComponentTypeText,
-					Text:   "To",
+					Text:   to,
 					Weight: linebot.FlexTextWeightTypeRegular,
 					Flex:   &flexLabel,
 					Size:   linebot.FlexTextSizeTypeSm,
@@ -645,14 +747,14 @@ func (app *HailingApp) StarFeedbackFlex(tripID int) linebot.SendingMessage {
 			Contents: []linebot.FlexComponent{
 				&linebot.TextComponent{
 					Type:   linebot.FlexComponentTypeText,
-					Text:   "Duration",
+					Text:   durationLabel,
 					Weight: linebot.FlexTextWeightTypeRegular,
 					Flex:   &flexLabel,
 					Size:   linebot.FlexTextSizeTypeSm,
 				},
 				&linebot.TextComponent{
 					Type:   linebot.FlexComponentTypeText,
-					Text:   fmt.Sprintf("%.0f min", duration.Minutes()),
+					Text:   travelMin,
 					Weight: linebot.FlexTextWeightTypeRegular,
 					Flex:   &flexDesc,
 					Size:   linebot.FlexTextSizeTypeSm,
@@ -715,24 +817,32 @@ func (app *HailingApp) StarFeedbackFlex(tripID int) linebot.SendingMessage {
 		},
 	}
 
-	return linebot.NewFlexMessage("Ride confirmation", contents)
+	return linebot.NewFlexMessage("StarFeedback", contents)
 }
 
 // EstimatedTravelTimeFlex shows alternative travel time, but continue asking
 // 		if customer want to use the service, when?
-func (app *HailingApp) EstimatedTravelTimeFlex(record *ReservationRecord, btnAction linebot.TemplateAction) linebot.SendingMessage {
+func (app *HailingApp) EstimatedTravelTimeFlex(record *ReservationRecord, btnAction linebot.TemplateAction, localizer *i18n.Localizer) linebot.SendingMessage {
 	// secondaryColor := "#AAAAAA"
+
+	confirm := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "ReservationConfirmation",
+			Other: "Your reservation: confirmation",
+		},
+	})
+
 	elements := []linebot.FlexComponent{
 		&linebot.TextComponent{
 			Type:   linebot.FlexComponentTypeText,
-			Text:   "Your reservation: confirmation",
+			Text:   confirm,
 			Weight: linebot.FlexTextWeightTypeBold,
 			Size:   linebot.FlexTextSizeTypeXl,
 			Wrap:   true,
 		},
 	}
-	elements = append(elements, RecordInformationFlexArray(record)...)
-	estTimeElements, err := app.TravelTimeFlexArray(record)
+	elements = append(elements, RecordInformationFlexArray(record, localizer)...)
+	estTimeElements, err := app.TravelTimeFlexArray(record, localizer)
 	if err == nil {
 		elements = append(elements, estTimeElements...)
 	}
@@ -746,6 +856,13 @@ func (app *HailingApp) EstimatedTravelTimeFlex(record *ReservationRecord, btnAct
 	// 	Wrap:  true,
 	// 	Color: secondaryColor,
 	// })
+
+	walkInstead := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "WalkInstead",
+			Other: "I'll walk instead",
+		},
+	})
 
 	contents := &linebot.BubbleContainer{
 		Type: linebot.FlexContainerTypeBubble,
@@ -772,19 +889,24 @@ func (app *HailingApp) EstimatedTravelTimeFlex(record *ReservationRecord, btnAct
 					Height: linebot.FlexButtonHeightTypeSm,
 					Style:  linebot.FlexButtonStyleTypeLink,
 					Action: linebot.NewPostbackAction(
-						"I'll walk instead",
+						walkInstead,
 						"cancel", "cancel", ""),
 				},
 			},
 		},
 	}
 
-	return linebot.NewFlexMessage("Ride confirmation", contents)
+	return linebot.NewFlexMessage("EstTravelTime", contents)
 }
 
 // TravelTimeFlexArray returns estimated travel time in flex component array
-func (app *HailingApp) TravelTimeFlexArray(record *ReservationRecord) ([]linebot.FlexComponent, error) {
-	title := "Estimated travel time"
+func (app *HailingApp) TravelTimeFlexArray(record *ReservationRecord, localizer *i18n.Localizer) ([]linebot.FlexComponent, error) {
+	title := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "EstTravelTime",
+			Other: "Estimated travel time",
+		},
+	})
 	// NOTE: alternative options..
 	walkRoute, err := GetTravelTime("walk", *record)
 	if err != nil {
@@ -817,30 +939,91 @@ func (app *HailingApp) TravelTimeFlexArray(record *ReservationRecord) ([]linebot
 		Size:   linebot.FlexTextSizeTypeLg,
 		Margin: linebot.FlexComponentMarginTypeMd,
 	})
+
 	// travel options :: walk
 	if walkRoute.Duration > 0 {
-		m := fmt.Sprintf("%.0f m", walkRoute.Distance)
-		d := fmt.Sprintf("%.0f min", walkRoute.Duration/60)
-		elements = append(elements, app.travelOption("walk", m, d))
+		travelLength := localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{
+				ID:    "TravelMeter",
+				Other: "{{.Meter}} m",
+			},
+			TemplateData: map[string]string{
+				"Meter": fmt.Sprintf("%.0f", walkRoute.Distance),
+			},
+		})
+		travelMin := localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{
+				ID:    "TravelMinute",
+				Other: "{{.Min}} min",
+			},
+			TemplateData: map[string]string{
+				"Min": fmt.Sprintf("%.0f", walkRoute.Duration/60),
+			},
+		})
+		elements = append(elements, app.travelOption("walk", travelLength, travelMin))
 	}
 	// travel options :: car
 	if carRoute.Duration > 0 {
-		m := fmt.Sprintf("%.0f m", carRoute.Distance)
+		travelLength := localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{
+				ID:    "TravelMeter",
+				Other: "{{.Meter}} m",
+			},
+			TemplateData: map[string]string{
+				"Meter": fmt.Sprintf("%.0f", carRoute.Distance),
+			},
+		})
 		if carRoute.DurationInTraffic > carRoute.Duration {
-			m = fmt.Sprintf("%.0f m\n%.0f min w/o traffic", carRoute.Distance, carRoute.Duration/60)
+			travelLength = localizer.MustLocalize(&i18n.LocalizeConfig{
+				DefaultMessage: &i18n.Message{
+					ID:    "TravelMeter",
+					Other: "{{.Meter}} m\n{{.FreeFlowMinute}} min w/o traffic",
+				},
+				TemplateData: map[string]string{
+					"Meter":          fmt.Sprintf("%.0f", carRoute.Distance),
+					"FreeFlowMinute": fmt.Sprintf("%.0f", carRoute.Duration/60),
+				},
+			})
 		}
-		d := fmt.Sprintf("%.0f min", carRoute.DurationInTraffic/60)
-		elements = append(elements, app.travelOption("taxi", m, d))
+		travelMin := localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{
+				ID:    "TravelMinute",
+				Other: "{{.Min}} min",
+			},
+			TemplateData: map[string]string{
+				"Min": fmt.Sprintf("%.0f", carRoute.DurationInTraffic/60),
+			},
+		})
+		elements = append(elements, app.travelOption("taxi", travelLength, travelMin))
 	}
 	return elements, nil
 }
 
 // RecordInformationFlexArray returns array of record information
-func RecordInformationFlexArray(record *ReservationRecord) []linebot.FlexComponent {
+func RecordInformationFlexArray(record *ReservationRecord, localizer *i18n.Localizer) []linebot.FlexComponent {
 	flexLabel := 2
 	flexDesc := 8
 	bkk, _ := time.LoadLocation("Asia/Bangkok")
 	bkkReservedTime := record.ReservedAt.In(bkk)
+
+	pickup := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "Pickup",
+			Other: "Pickup",
+		},
+	})
+	to := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "To",
+			Other: "To",
+		},
+	})
+	timeLabel := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "Time",
+			Other: "Time",
+		},
+	})
 
 	flexComponents := []linebot.FlexComponent{
 		&linebot.BoxComponent{
@@ -851,7 +1034,7 @@ func RecordInformationFlexArray(record *ReservationRecord) []linebot.FlexCompone
 			Contents: []linebot.FlexComponent{
 				&linebot.TextComponent{
 					Type:   linebot.FlexComponentTypeText,
-					Text:   "Pickup",
+					Text:   pickup,
 					Weight: linebot.FlexTextWeightTypeRegular,
 					Flex:   &flexLabel,
 					Size:   linebot.FlexTextSizeTypeSm,
@@ -874,7 +1057,7 @@ func RecordInformationFlexArray(record *ReservationRecord) []linebot.FlexCompone
 			Contents: []linebot.FlexComponent{
 				&linebot.TextComponent{
 					Type:   linebot.FlexComponentTypeText,
-					Text:   "To",
+					Text:   to,
 					Weight: linebot.FlexTextWeightTypeRegular,
 					Flex:   &flexLabel,
 					Size:   linebot.FlexTextSizeTypeSm,
@@ -897,7 +1080,7 @@ func RecordInformationFlexArray(record *ReservationRecord) []linebot.FlexCompone
 			Contents: []linebot.FlexComponent{
 				&linebot.TextComponent{
 					Type:   linebot.FlexComponentTypeText,
-					Text:   "Time",
+					Text:   timeLabel,
 					Weight: linebot.FlexTextWeightTypeRegular,
 					Flex:   &flexLabel,
 					Size:   linebot.FlexTextSizeTypeSm,
@@ -916,9 +1099,22 @@ func RecordInformationFlexArray(record *ReservationRecord) []linebot.FlexCompone
 }
 
 // RecordConfirmFlex to return information in form of FLEX
-func (record *ReservationRecord) RecordConfirmFlex(title string, customButtons ...linebot.ButtonComponent) linebot.SendingMessage {
+func (record *ReservationRecord) RecordConfirmFlex(title string, localizer *i18n.Localizer, customButtons ...linebot.ButtonComponent) linebot.SendingMessage {
 	flexBtnLeft := 3
 	flexBtnRight := 6
+
+	pickupTimeChange := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "ChangePickupTime",
+			Other: "Change pickup time",
+		},
+	})
+	cancel := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "Cancel",
+			Other: "Cancel",
+		},
+	})
 
 	var successButton linebot.ButtonComponent
 	if len(customButtons) == 0 {
@@ -927,7 +1123,7 @@ func (record *ReservationRecord) RecordConfirmFlex(title string, customButtons .
 			Style:  linebot.FlexButtonStyleTypeSecondary,
 			Flex:   &flexBtnRight,
 			Action: linebot.NewDatetimePickerAction(
-				"Change pickup time", "datetime-change", "datetime",
+				pickupTimeChange, "datetime-change", "datetime",
 				"", "", ""),
 		}
 	} else {
@@ -942,7 +1138,7 @@ func (record *ReservationRecord) RecordConfirmFlex(title string, customButtons .
 			Size:   linebot.FlexTextSizeTypeXl,
 		},
 	}
-	elements = append(elements, RecordInformationFlexArray(record)...)
+	elements = append(elements, RecordInformationFlexArray(record, localizer)...)
 
 	contents := &linebot.BubbleContainer{
 		Type: linebot.FlexContainerTypeBubble,
@@ -968,7 +1164,7 @@ func (record *ReservationRecord) RecordConfirmFlex(title string, customButtons .
 							Height: linebot.FlexButtonHeightTypeMd,
 							Style:  linebot.FlexButtonStyleTypeLink,
 							Flex:   &flexBtnLeft,
-							Action: linebot.NewPostbackAction("Cancel", "cancel", "", ""),
+							Action: linebot.NewPostbackAction(cancel, "cancel", "", ""),
 						},
 						&successButton,
 					},
@@ -976,7 +1172,7 @@ func (record *ReservationRecord) RecordConfirmFlex(title string, customButtons .
 			},
 		},
 	}
-	return linebot.NewFlexMessage("Ride confirmation", contents)
+	return linebot.NewFlexMessage("Record confirmation", contents)
 }
 
 // PushNotification handle pushing messages to our user
@@ -990,18 +1186,48 @@ func (app *HailingApp) PushNotification(lineUserID string, messages ...linebot.S
 }
 
 // LanguageOptionFlex push Flex message for language options
-func (app *HailingApp) LanguageOptionFlex() linebot.SendingMessage {
+func (app *HailingApp) LanguageOptionFlex(localizer *i18n.Localizer) linebot.SendingMessage {
+	title := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "LanguagePickerTitle",
+			Other: "Language selector",
+		},
+	})
+	question := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "WhichOne",
+			Other: "Which one do you prefer?",
+		},
+	})
+	en := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "English",
+			Other: "🇺🇸 English",
+		},
+	})
+	ja := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "Japanese",
+			Other: "🇯🇵 Japanese",
+		},
+	})
+	th := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "Thai",
+			Other: "🇹🇭 Thai",
+		},
+	})
 
 	elements := []linebot.FlexComponent{
 		&linebot.TextComponent{
 			Type:   linebot.FlexComponentTypeText,
-			Text:   "Language selector",
+			Text:   title,
 			Weight: linebot.FlexTextWeightTypeBold,
 			Size:   linebot.FlexTextSizeTypeLg,
 		},
 		&linebot.TextComponent{
 			Type:   linebot.FlexComponentTypeText,
-			Text:   "Which one do you prefer?",
+			Text:   question,
 			Wrap:   true,
 			Weight: linebot.FlexTextWeightTypeRegular,
 			Size:   linebot.FlexTextSizeTypeMd,
@@ -1010,21 +1236,21 @@ func (app *HailingApp) LanguageOptionFlex() linebot.SendingMessage {
 			Height: linebot.FlexButtonHeightTypeMd,
 			Style:  linebot.FlexButtonStyleTypeLink,
 			Action: linebot.NewPostbackAction(
-				"🇺🇸 English",
+				en,
 				fmt.Sprintf("/set:language:en"), "", ""),
 		},
 		&linebot.ButtonComponent{
 			Height: linebot.FlexButtonHeightTypeMd,
 			Style:  linebot.FlexButtonStyleTypeLink,
 			Action: linebot.NewPostbackAction(
-				"🇯🇵 Japanese",
+				ja,
 				fmt.Sprintf("/set:language:ja"), "", ""),
 		},
 		&linebot.ButtonComponent{
 			Height: linebot.FlexButtonHeightTypeMd,
 			Style:  linebot.FlexButtonStyleTypeLink,
 			Action: linebot.NewPostbackAction(
-				"🇹🇭 Thai",
+				th,
 				fmt.Sprintf("/set:language:th"), "", ""),
 		},
 	}
@@ -1047,23 +1273,39 @@ func (app *HailingApp) LanguageOptionFlex() linebot.SendingMessage {
 			},
 		},
 	}
-
-	return linebot.NewFlexMessage("Ride confirmation", contents)
+	altText := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "Confirmation",
+			Other: "Language",
+		},
+	})
+	return linebot.NewFlexMessage(altText, contents)
 }
 
 // HelpMessageFlex push Flex message for language options
-func (app *HailingApp) HelpMessageFlex() linebot.SendingMessage {
-
+func (app *HailingApp) HelpMessageFlex(localizer *i18n.Localizer) linebot.SendingMessage {
+	title := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "Help",
+			Other: "Help",
+		},
+	})
+	listOfCommands := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "ListOfAvailableCommands",
+			Other: "List of available commands",
+		},
+	})
 	elements := []linebot.FlexComponent{
 		&linebot.TextComponent{
 			Type:   linebot.FlexComponentTypeText,
-			Text:   "Help",
+			Text:   title,
 			Weight: linebot.FlexTextWeightTypeBold,
 			Size:   linebot.FlexTextSizeTypeLg,
 		},
 		&linebot.TextComponent{
 			Type:   linebot.FlexComponentTypeText,
-			Text:   "list of available commands",
+			Text:   listOfCommands,
 			Wrap:   true,
 			Weight: linebot.FlexTextWeightTypeRegular,
 			Size:   linebot.FlexTextSizeTypeMd,
@@ -1102,6 +1344,11 @@ func (app *HailingApp) HelpMessageFlex() linebot.SendingMessage {
 			},
 		},
 	}
-
-	return linebot.NewFlexMessage("Ride confirmation", contents)
+	altText := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "Help",
+			Other: "Help",
+		},
+	})
+	return linebot.NewFlexMessage(altText, contents)
 }
