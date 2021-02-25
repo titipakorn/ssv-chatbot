@@ -7,8 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
+	"github.com/nicksnyder/go-i18n/v2/i18n"
+	"golang.org/x/text/language"
 )
 
 func TestLocationWords(t *testing.T) {
@@ -242,11 +245,15 @@ func TestInitReserve(t *testing.T) {
 }
 
 func TestQuestionFromEachState(t *testing.T) {
+	bundle := i18n.NewBundle(language.English)
+	bundle.RegisterUnmarshalFunc("toml", toml.Unmarshal)
+	localizer := i18n.NewLocalizer(bundle, "en")
+
 	record := ReservationRecord{
 		State:   "init",
 		Waiting: "to",
 	}
-	q1 := record.QuestionToAsk()
+	q1 := record.QuestionToAsk(localizer)
 	fmt.Println(q1)
 	if q1.Text != "Where to?" {
 		t.Errorf("Where to? != %v", q1.Text)
@@ -254,14 +261,14 @@ func TestQuestionFromEachState(t *testing.T) {
 
 	record.State = "to"
 	record.Waiting = "from"
-	q2 := record.QuestionToAsk()
+	q2 := record.QuestionToAsk(localizer)
 	if q2.Text != "Pickup location?" {
 		t.Errorf("Pickup location? != %v", q2.Text)
 	}
 
 	record.State = "from"
 	record.Waiting = "when"
-	q3 := record.QuestionToAsk()
+	q3 := record.QuestionToAsk(localizer)
 	if q3.Text != "When?" {
 		t.Errorf("When? != %v", q3.Text)
 	}

@@ -365,7 +365,7 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 }
 
 func (app *HailingApp) replyQuestion(replyToken string, localizer *i18n.Localizer, record *ReservationRecord, msgs ...string) error {
-	question := record.QuestionToAsk()
+	question := record.QuestionToAsk(localizer)
 	if question.YesInput == true {
 		return app.replyFinalStep(replyToken, localizer, record)
 	}

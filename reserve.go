@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-redis/redis/v7"
 	"github.com/google/uuid"
+	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/paulmach/orb"
 	"github.com/paulmach/orb/geojson"
 	"github.com/paulmach/orb/planar"
@@ -260,7 +261,7 @@ func (app *HailingApp) InitReservation(user User) (*ReservationRecord, error) {
 }
 
 // QuestionToAsk returns a question appropriate for each state
-func (record *ReservationRecord) QuestionToAsk() Question {
+func (record *ReservationRecord) QuestionToAsk(localizer *i18n.Localizer) Question {
 	// step: init -> to -> from -> when -> final -> done
 	switch strings.ToLower(record.Waiting) {
 	case "to":
@@ -279,7 +280,12 @@ func (record *ReservationRecord) QuestionToAsk() Question {
 			},
 		}
 		return Question{
-			Text:          "Where to?",
+			Text: localizer.MustLocalize(&i18n.LocalizeConfig{
+				DefaultMessage: &i18n.Message{
+					ID:    "WhereTo",
+					Other: "Where to?",
+				},
+			}),
 			Buttons:       buttons,
 			LocationInput: true,
 		}
@@ -299,7 +305,12 @@ func (record *ReservationRecord) QuestionToAsk() Question {
 			},
 		}
 		return Question{
-			Text:          "Pickup location?",
+			Text: localizer.MustLocalize(&i18n.LocalizeConfig{
+				DefaultMessage: &i18n.Message{
+					ID:    "PickupLocation",
+					Other: "Pickup location?",
+				},
+			}),
 			Buttons:       buttons,
 			LocationInput: true,
 		}
@@ -310,16 +321,37 @@ func (record *ReservationRecord) QuestionToAsk() Question {
 				Text:  "now",
 			},
 			{
-				Label: "In 15 mins",
-				Text:  "+15min",
+				Label: localizer.MustLocalize(&i18n.LocalizeConfig{
+					DefaultMessage: &i18n.Message{
+						ID:    "InXMin",
+						Other: "In {{.Min}} mins",
+					},
+					TemplateData: map[string]string{
+						"Min": "15",
+					},
+				}),
+				Text: "+15min",
 			},
 			{
-				Label: "In 30 mins",
-				Text:  "+30min",
+				Label: localizer.MustLocalize(&i18n.LocalizeConfig{
+					DefaultMessage: &i18n.Message{
+						ID:    "InXMin",
+						Other: "In {{.Min}} mins",
+					},
+					TemplateData: map[string]string{
+						"Min": "30",
+					},
+				}),
+				Text: "+30min",
 			},
 		}
 		return Question{
-			Text:          "When?",
+			Text: localizer.MustLocalize(&i18n.LocalizeConfig{
+				DefaultMessage: &i18n.Message{
+					ID:    "When",
+					Other: "When?",
+				},
+			}),
 			Buttons:       buttons,
 			DatetimeInput: true,
 		}
@@ -343,12 +375,22 @@ func (record *ReservationRecord) QuestionToAsk() Question {
 			},
 		}
 		return Question{
-			Text:    "How many passengers?",
+			Text: localizer.MustLocalize(&i18n.LocalizeConfig{
+				DefaultMessage: &i18n.Message{
+					ID:    "HowManyPassengers",
+					Other: "How many passengers?",
+				},
+			}),
 			Buttons: buttons,
 		}
 	case "final":
 		return Question{
-			Text:     "Confirm",
+			Text: localizer.MustLocalize(&i18n.LocalizeConfig{
+				DefaultMessage: &i18n.Message{
+					ID:    "Confirm",
+					Other: "Confirm",
+				},
+			}),
 			YesInput: true,
 		}
 	}
