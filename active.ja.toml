@@ -1,11 +1,179 @@
+[ASAP]
+hash = "sha1-261e4be27e3c714008c2ea33cd6a7cd65e312c66"
+other = "asap"
+
+[AskForLocation]
+hash = "sha1-a5fe081642f02cb713106d5ab30f2f0a30d73bc9"
+other = "Or send me your location!"
+
+[Cancel]
+hash = "sha1-77dfd2135f4db726c47299bb55be26f7f4525a46"
+other = "Cancel"
+
+[ChangePickupTime]
+hash = "sha1-6fe1b87d93c074860ffd6252c5fa5e0601086ba3"
+other = "Change pickup time"
+
 [CommandUnavailable]
 hash = "sha1-bfed234d466faaa491252c3b967ea72e8febeb62"
 other = "コマンドを使用できません"
 
-[LanguageHandlerSame]
+[Confirm]
+hash = "sha1-04a212215ef9fbf686d280802eb81ee7a6e681cd"
+other = "Confirm"
+
+[Confirmation]
+hash = "sha1-89b86ab0e66f527166d98df92ddbcf5416ed58f6"
+other = "Language"
+
+[DriverAcceptedJob]
+hash = "sha1-0b7257900992c0bfb8357f2933afdf55feb3b42b"
+other = "Driver accepts the job. Please meet at designated location {{.LocalTime}}"
+
+[Duration]
+hash = "sha1-1370004da76fa4f3b7a5180fd5436065ef4c7d5b"
+other = "Duration"
+
+[English]
+hash = "sha1-531f367102ee2e7e97b24eb8f4c017a7b95aa3c9"
+other = "🇺🇸 英語"
+
+[EstTravelTime]
+hash = "sha1-ca295a985b4ccd463c862da45bd05ff076925940"
+other = "Estimated travel time"
+
+[HHMM]
+hash = "sha1-77e041e915eb683582c0a8d397be3b7b6ab20f82"
+other = "at {{.hhmm}}."
+
+[Help]
+hash = "sha1-c47ae15370cfe1ed2781eedc1dc2547d12d9e972"
+other = "Help"
+
+[HowDoYouLikeService]
+hash = "sha1-82e9d183b6bd3d72201c7ffec1f30a5052485eca"
+other = "How do you like our service this time?"
+
+[HowManyPassengers]
+hash = "sha1-2042168092b0cb32eee5bcf6489daec735b45896"
+other = "How many passengers?"
+
+[InXMin]
+hash = "sha1-1b9afe7ecce7e97799fa26f9fbe507635d86d39d"
+other = "In {{.Min}} mins"
+
+[Japanese]
+hash = "sha1-568d976ca7ff3428d0c649cfc6f8129a91796b5a"
+other = "🇯🇵 日本語"
+
+[LanguageIsTheSame]
 hash = "sha1-d4201bc6bf738be94f7f9f60025695136ac8623c"
 other = "Your language is already {{.Lang}}."
 
-[LanguageHandlerSet]
+[LanguagePickerTitle]
+hash = "sha1-0eae0a3940e209d57f6ecd4350292b0d1afcc384"
+other = "Language selector"
+
+[LanguageSetTo]
 hash = "sha1-aab5ce35b6cea5532c4299bf8a461ba9c48aac2e"
 other = "Your language set to {{.Lang}}."
+
+[ListOfAvailableCommands]
+hash = "sha1-a1553b62c1a5aab66de017cfefcbb8f8e6a983a1"
+other = "List of available commands"
+
+[LocationOptions]
+hash = "sha1-af57e784f813f82867f9404ede10032f4ddbdcac"
+other = "Location options"
+
+[NothingChanged]
+hash = "sha1-4426d300412595c625518612913cdf3c711f1069"
+other = "Error, nothing changed"
+
+[PickFromListBelow]
+hash = "sha1-085b13e5338096ef3ff6175e93aa573e659b8411"
+other = "Pick from the list below"
+
+[Pickup]
+hash = "sha1-a51122c1008c9b214f1e982f089eb0a2dd22fa29"
+other = "Pickup"
+
+[PickupLocation]
+hash = "sha1-adc67a6a7f319e02f4af6b15a052073a3a0f80b5"
+other = "Pickup location?"
+
+[ReservationCancelled]
+hash = "sha1-4d11bc874970e3dca3986247923dd720bb84ee12"
+other = "Your reservation cancelled."
+
+[ReservationConfirmation]
+hash = "sha1-b15f1ccf3099374ee6a2a6ecf7cfe742857f9567"
+other = "Your reservation: confirmation"
+
+[ReservationIncompleted]
+hash = "sha1-6639ca8e87a4569638a99284e3073ec89533d7af"
+other = "The reservation isn't completed yet."
+
+[RideConfirmation]
+hash = "sha1-f588dedd2103ee99cf256cea5bf414d955b005b5"
+other = "Ride confirmation"
+
+[RideInitLine]
+hash = "sha1-67567f35f862aa84fb9fdf3149d7fa737668d038"
+other = "Need a ride now?"
+
+[RideIsDone]
+hash = "sha1-bee614b3596a8c92525eb1bf20c83b618831549a"
+other = "The ride is done."
+
+[RideReservationCompleted]
+hash = "sha1-3775e2c9e3f2c7152641c52eadf14f8f4e319ae9"
+other = "Your ride reservation is done."
+
+[Thai]
+hash = "sha1-01a0451b167c6cf484c04be7d570b2ac0cd6dd5e"
+other = "🇹🇭 タイ"
+
+[ThankYouSeeYouAgain]
+hash = "sha1-b55f9a7f118909d91be03d26d6be72e0c2e53cf8"
+other = "Thank you for your feedback. We hope to see you again."
+
+[Time]
+hash = "sha1-6c82e6dd86807ee3db07e3c82bec1ae1ce00b08b"
+other = "Time"
+
+[To]
+hash = "sha1-ae79ea1e9c6391a9ed83a2e18a031b835feec0c9"
+other = "To"
+
+[TravelMeter]
+hash = "sha1-2c5cda3d4aa29825e08b09ff7486205631906a14"
+other = "{{.Meter}} m\n{{.FreeFlowMinute}} min w/o traffic"
+
+[TravelMinute]
+hash = "sha1-e9330ebf3f13f0e07de45b50b0b6a072157db2b9"
+other = "{{.Min}} min"
+
+[WalkInstead]
+hash = "sha1-aa0b91d9af024fa851a919365054a37dd556ed6d"
+other = "I'll walk instead"
+
+[WelcomeAboard]
+hash = "sha1-389fa6a2c9a3cb8e81430d618d16526a649378de"
+other = "Welcome aboard!"
+
+[When]
+hash = "sha1-b2028cfcc78f7fd44821aacab16481a32f1dfc70"
+other = "When?"
+
+[WhereTo]
+hash = "sha1-5bd0c21612751789aa6fbd8448cb52cdb0347d34"
+other = "Where to?"
+
+[WhichOne]
+hash = "sha1-45c75a477131234b3a52b3e6a6731ecd0ca724c3"
+other = "Which one do you prefer?"
+
+[Yes]
+hash = "sha1-5397e0583f14f6c88de06b1ef28f460a1fb5b0ae"
+other = "Yes"

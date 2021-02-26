@@ -1,11 +1,179 @@
+[ASAP]
+hash = "sha1-261e4be27e3c714008c2ea33cd6a7cd65e312c66"
+other = "ตอนนี้เลย"
+
+[AskForLocation]
+hash = "sha1-a5fe081642f02cb713106d5ab30f2f0a30d73bc9"
+other = "หรือจะส่งตำแหน่งเลยก็ได้นะ"
+
+[Cancel]
+hash = "sha1-77dfd2135f4db726c47299bb55be26f7f4525a46"
+other = "ยกเลิก"
+
+[ChangePickupTime]
+hash = "sha1-6fe1b87d93c074860ffd6252c5fa5e0601086ba3"
+other = "เปลี่ยนเวลา"
+
 [CommandUnavailable]
 hash = "sha1-bfed234d466faaa491252c3b967ea72e8febeb62"
 other = "ไม่พบคำสั่งนี้"
 
-[LanguageHandlerSame]
-hash = "sha1-d4201bc6bf738be94f7f9f60025695136ac8623c"
-other = "ภาษาที่ตั้งนั้นเหมือนเดิม: {{.Lang}}"
+[Confirm]
+hash = "sha1-04a212215ef9fbf686d280802eb81ee7a6e681cd"
+other = "ยืนยัน"
 
-[LanguageHandlerSet]
+[Confirmation]
+hash = "sha1-89b86ab0e66f527166d98df92ddbcf5416ed58f6"
+other = "ภาษา"
+
+[DriverAcceptedJob]
+hash = "sha1-0b7257900992c0bfb8357f2933afdf55feb3b42b"
+other = "SSV พร้อมแล้วกับการเดินทางของคุณ โปรดมาที่ตำแหน่งนัด {{.LocalTime}}"
+
+[Duration]
+hash = "sha1-1370004da76fa4f3b7a5180fd5436065ef4c7d5b"
+other = "ระยะเวลา"
+
+[English]
+hash = "sha1-531f367102ee2e7e97b24eb8f4c017a7b95aa3c9"
+other = "🇺🇸 ภาษาอังกฤษ"
+
+[EstTravelTime]
+hash = "sha1-ca295a985b4ccd463c862da45bd05ff076925940"
+other = "เวลาเดินทางโดยประมาณ"
+
+[HHMM]
+hash = "sha1-77e041e915eb683582c0a8d397be3b7b6ab20f82"
+other = "เวลา {{.hhmm}}."
+
+[Help]
+hash = "sha1-c47ae15370cfe1ed2781eedc1dc2547d12d9e972"
+other = "ช่วยเหลือ"
+
+[HowDoYouLikeService]
+hash = "sha1-82e9d183b6bd3d72201c7ffec1f30a5052485eca"
+other = "คุณมีความคิดเห็นอย่างไรกับการบริการในรอบนี้?"
+
+[HowManyPassengers]
+hash = "sha1-2042168092b0cb32eee5bcf6489daec735b45896"
+other = "จำนวนผู้โดยสาร?"
+
+[InXMin]
+hash = "sha1-1b9afe7ecce7e97799fa26f9fbe507635d86d39d"
+other = "In {{.Min}} mins"
+
+[Japanese]
+hash = "sha1-568d976ca7ff3428d0c649cfc6f8129a91796b5a"
+other = "🇯🇵 ญี่ปุ่น"
+
+[LanguageIsTheSame]
+hash = "sha1-d4201bc6bf738be94f7f9f60025695136ac8623c"
+other = "ภาษาของคุณเป็น {{.Lang}} อยู่แล้ว"
+
+[LanguagePickerTitle]
+hash = "sha1-0eae0a3940e209d57f6ecd4350292b0d1afcc384"
+other = "เลือกภาษา"
+
+[LanguageSetTo]
 hash = "sha1-aab5ce35b6cea5532c4299bf8a461ba9c48aac2e"
-other = "ตั้งค่าให้ {{.Lang}} เป็นภาษาหลักแล้ว"
+other = "{{.Lang}} คือ ภาษาหลักของคุณ"
+
+[ListOfAvailableCommands]
+hash = "sha1-a1553b62c1a5aab66de017cfefcbb8f8e6a983a1"
+other = "รายละเอียดคำสั่งที่ใช้ได้"
+
+[LocationOptions]
+hash = "sha1-af57e784f813f82867f9404ede10032f4ddbdcac"
+other = "ตัวเลือกสถานที่ต่างๆ"
+
+[NothingChanged]
+hash = "sha1-4426d300412595c625518612913cdf3c711f1069"
+other = "พบข้อผิดพลาด ยังไม่มีการเปลี่ยนแปลง"
+
+[PickFromListBelow]
+hash = "sha1-085b13e5338096ef3ff6175e93aa573e659b8411"
+other = "เลือกจากรายการข้างล่าง"
+
+[Pickup]
+hash = "sha1-a51122c1008c9b214f1e982f089eb0a2dd22fa29"
+other = "สถานที่นัด"
+
+[PickupLocation]
+hash = "sha1-adc67a6a7f319e02f4af6b15a052073a3a0f80b5"
+other = "สถานที่นัด?"
+
+[ReservationCancelled]
+hash = "sha1-4d11bc874970e3dca3986247923dd720bb84ee12"
+other = "ยกเลิกการจอง"
+
+[ReservationConfirmation]
+hash = "sha1-b15f1ccf3099374ee6a2a6ecf7cfe742857f9567"
+other = "การยืนยันจอง"
+
+[ReservationIncompleted]
+hash = "sha1-6639ca8e87a4569638a99284e3073ec89533d7af"
+other = "การจองนี้ยังไม่ครบถ้วน"
+
+[RideConfirmation]
+hash = "sha1-f588dedd2103ee99cf256cea5bf414d955b005b5"
+other = "ยืนยันรายละเอียดการเดินทาง"
+
+[RideInitLine]
+hash = "sha1-67567f35f862aa84fb9fdf3149d7fa737668d038"
+other = "ต้องการเดินทางไปไหนรึป่าว?"
+
+[RideIsDone]
+hash = "sha1-bee614b3596a8c92525eb1bf20c83b618831549a"
+other = "การเดินทางเสร็จสมบูรณ์แล้ว"
+
+[RideReservationCompleted]
+hash = "sha1-3775e2c9e3f2c7152641c52eadf14f8f4e319ae9"
+other = "การจองสำหรับเที่ยวนี้เรียบร้อยแล้ว"
+
+[Thai]
+hash = "sha1-01a0451b167c6cf484c04be7d570b2ac0cd6dd5e"
+other = "🇹🇭 ภาษาไทย"
+
+[ThankYouSeeYouAgain]
+hash = "sha1-b55f9a7f118909d91be03d26d6be72e0c2e53cf8"
+other = "ขอบคุณสำหรับคะแนนเพื่อพัฒนาการบริการ ไว้กลับมาใช้บริการเราใหม่นะ"
+
+[Time]
+hash = "sha1-6c82e6dd86807ee3db07e3c82bec1ae1ce00b08b"
+other = "เวลา"
+
+[To]
+hash = "sha1-ae79ea1e9c6391a9ed83a2e18a031b835feec0c9"
+other = "ไปยัง"
+
+[TravelMeter]
+hash = "sha1-2c5cda3d4aa29825e08b09ff7486205631906a14"
+other = "{{.Meter}} เมตร\n{{.FreeFlowMinute}} นาทีถ้าไม่มีรถติด"
+
+[TravelMinute]
+hash = "sha1-e9330ebf3f13f0e07de45b50b0b6a072157db2b9"
+other = "{{.Min}} นาที"
+
+[WalkInstead]
+hash = "sha1-aa0b91d9af024fa851a919365054a37dd556ed6d"
+other = "เดินดีกว่า"
+
+[WelcomeAboard]
+hash = "sha1-389fa6a2c9a3cb8e81430d618d16526a649378de"
+other = "ยินดีต้อนรับครับ"
+
+[When]
+hash = "sha1-b2028cfcc78f7fd44821aacab16481a32f1dfc70"
+other = "เวลา?"
+
+[WhereTo]
+hash = "sha1-5bd0c21612751789aa6fbd8448cb52cdb0347d34"
+other = "กำลังจะไปไหน?"
+
+[WhichOne]
+hash = "sha1-45c75a477131234b3a52b3e6a6731ecd0ca724c3"
+other = "เลือกจากตัวเลือกข้างล่าง?"
+
+[Yes]
+hash = "sha1-5397e0583f14f6c88de06b1ef28f460a1fb5b0ae"
+other = "ใช่"
