@@ -1,0 +1,28 @@
+version: "3"
+services:
+  dev-server:
+    build:
+      context: .
+      dockerfile: Dockerfile-dev
+      args:
+        buildno: 1
+    restart: always
+    networks:
+      - proxy_default
+    environment:
+      CHANNEL_SECRET: ${CHANNEL_SECRET}
+      CHANNEL_TOKEN: ${CHANNEL_TOKEN}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      APP_BASE_URL: ${APP_BASE_URL}
+      OSRM_BASE_URL: ${OSRM_BASE_URL}
+      REDIS_ADDR: ${REDIS_ADDR}
+      POSTGRES_URI: ${POSTGRES_URI}
+      PORT: ${PORT}
+    expose:
+      - ${PORT}
+    ports:
+      - "127.0.0.1:${PORT}:${PORT}"
+
+networks:
+  proxy_default:
+    external: true
