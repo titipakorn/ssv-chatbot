@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -32,7 +33,12 @@ func (app *HailingApp) BotCommandHandler(replyToken string, lineUserID string, r
 	case "set":
 		// TODO: this is a different beast which will need to verify subcommand
 		// 		 for other steps
-		break
+		if len(cmds) < 3 {
+			return errors.New("missing arguments")
+		}
+		if cmds[1] == "language" {
+			return app.LanguageHandler(replyToken, lineUserID, cmds[2])
+		}
 	case "language":
 	case "lang":
 		langFlex := app.LanguageOptionFlex(localizer)
@@ -142,6 +148,9 @@ func (app *HailingApp) FeedbackHandler(replyToken string, lineUserID string, tri
 		return err
 	}
 	_, localizer, err := app.Localizer(lineUserID)
+	if err != nil {
+		return err
+	}
 	feedbackText := localizer.MustLocalize(&i18n.LocalizeConfig{
 		DefaultMessage: &i18n.Message{
 			ID:    "ThankYouSeeYouAgain",
