@@ -416,8 +416,13 @@ func (app *HailingApp) replyTravelTimeOptionsAndWhen(replyToken string, record *
 }
 
 func (app *HailingApp) replyFinalStep(replyToken string, localizer *i18n.Localizer, record *ReservationRecord) error {
-
-	btnAction := linebot.NewPostbackAction("Confirm", "confirm", "", "")
+	confirmText := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "Confirm",
+			Other: "Confirm",
+		},
+	})
+	btnAction := linebot.NewPostbackAction(confirmText, "confirm", "", "")
 	if _, err := app.bot.ReplyMessage(
 		replyToken,
 		// linebot.NewTextMessage(optionTxt),
