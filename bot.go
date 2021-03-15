@@ -598,6 +598,7 @@ func (app *HailingApp) travelOption(icon string, distance string, duration strin
 	flex0 := 0
 	primaryColor := "#000000"
 	secondaryColor := "#AAAAAA"
+	log.Printf("icon --> %s/static/%s-100x100.png", app.appBaseURL, icon)
 	return &linebot.BoxComponent{
 		Layout: linebot.FlexBoxLayoutTypeBaseline,
 		Contents: []linebot.FlexComponent{
@@ -845,6 +846,8 @@ func (app *HailingApp) EstimatedTravelTimeFlex(record *ReservationRecord, btnAct
 	estTimeElements, err := app.TravelTimeFlexArray(record, localizer)
 	if err == nil {
 		elements = append(elements, estTimeElements...)
+	} else {
+		log.Printf("Adding TravelTime failed: %v", err)
 	}
 
 	// question
@@ -913,10 +916,20 @@ func (app *HailingApp) TravelTimeFlexArray(record *ReservationRecord, localizer 
 		msg := fmt.Sprintf("err: %v", err)
 		return nil, errors.New(msg)
 	}
+	carSource := "google"
 	carRoute, err := GetGoogleTravelTime(*record)
 	if err != nil {
-		msg := fmt.Sprintf("err: %v", err)
-		return nil, errors.New(msg)
+		// Still need to report Error
+		log.Printf("[TravelTimeFlexArray] Err: %v", err)
+		// Try our own GetTravelTime if we have a problem with Google
+		carRoute, err = GetTravelTime("car", *record)
+		carSource = "osrm"
+		if err != nil {
+			msg := fmt.Sprintf("err: %v", err)
+			return nil, errors.New(msg)
+		}
+		// msg := fmt.Sprintf("err: %v", err)
+		// return nil, errors.New(msg)
 	}
 
 	// save polyline from Google's travel time to record
@@ -963,7 +976,7 @@ func (app *HailingApp) TravelTimeFlexArray(record *ReservationRecord, localizer 
 		elements = append(elements, app.travelOption("walk", travelLength, travelMin))
 	}
 	// travel options :: car
-	if carRoute.Duration > 0 {
+	if carRoute.Duration > 0 && carSource == "google" {
 		travelLength := localizer.MustLocalize(&i18n.LocalizeConfig{
 			DefaultMessage: &i18n.Message{
 				ID:    "TravelMeter",
@@ -992,6 +1005,26 @@ func (app *HailingApp) TravelTimeFlexArray(record *ReservationRecord, localizer 
 			},
 			TemplateData: map[string]string{
 				"Min": fmt.Sprintf("%.0f", carRoute.DurationInTraffic/60),
+			},
+		})
+		elements = append(elements, app.travelOption("taxi", travelLength, travelMin))
+	} else if carRoute.Duration > 0 {
+		travelLength := localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{
+				ID:    "TravelMeter",
+				Other: "{{.Meter}} m",
+			},
+			TemplateData: map[string]string{
+				"Meter": fmt.Sprintf("%.0f", carRoute.Distance),
+			},
+		})
+		travelMin := localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{
+				ID:    "TravelMinute",
+				Other: "{{.Min}} min",
+			},
+			TemplateData: map[string]string{
+				"Min": fmt.Sprintf("%.0f", carRoute.Duration/60),
 			},
 		})
 		elements = append(elements, app.travelOption("taxi", travelLength, travelMin))
@@ -1041,7 +1074,7 @@ func RecordInformationFlexArray(record *ReservationRecord, localizer *i18n.Local
 				},
 				&linebot.TextComponent{
 					Type:   linebot.FlexComponentTypeText,
-					Text:   record.From,
+					Text:   fmt.Sprintf("%v (%d 👤)", record.From, record.NumOfPassengers),
 					Weight: linebot.FlexTextWeightTypeRegular,
 					Flex:   &flexDesc,
 					Size:   linebot.FlexTextSizeTypeSm,
