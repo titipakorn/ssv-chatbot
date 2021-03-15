@@ -189,7 +189,7 @@ func (app *HailingApp) SaveRecordToRedis(record *ReservationRecord) error {
 	cacheDuration := 10 * time.Minute
 	// log.Printf("[ProcessReservationStep] post_status_change: %s \n   >> record: %v", rec.State, rec.UpdatedAt)
 	if err := app.rdb.Set(record.LineUserID, buff, cacheDuration).Err(); err != nil {
-		log.Fatal(err)
+		log.Printf("Redis Error: %v", err)
 		return err
 	}
 	return nil
@@ -234,12 +234,12 @@ func (app *HailingApp) FindOrCreateRecord(lineUserID string) (*ReservationRecord
 
 func (app *HailingApp) initReservation(lineUserID string) (*ReservationRecord, error) {
 	user, err := app.FindOrCreateUser(lineUserID)
-	// log.Printf("[initReservation] lineID: %v\n", lineUserID)
+	log.Printf("[initReservation] lineID: %v\n", lineUserID)
 	if err != nil {
 		log.Fatal(err)
 		return nil, err
 	}
-	// log.Printf("[initReservation] ==> user: %v\n", user)
+	log.Printf("[initReservation] ==> user: %v\n", user)
 	return app.InitReservation(*user)
 }
 
@@ -255,8 +255,10 @@ func (app *HailingApp) InitReservation(user User) (*ReservationRecord, error) {
 
 	err := app.SaveRecordToRedis(&newRecord)
 	if err != nil {
+		log.Printf("SAVE to Redis FAILED: %v", err)
 		return nil, err
 	}
+	log.Printf("SAVE to Redis OK: %v", newRecord)
 	return &newRecord, nil
 }
 
@@ -472,6 +474,8 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 		return nil, errors.New("There is a problem")
 	}
 
+	log.Printf("[ProcessReservationStep] GOT record: %v", rec)
+
 	switch rec.Waiting {
 	case "from":
 		_, err := IsLocation(reply)
@@ -563,13 +567,13 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 	default:
 		return rec, errors.New("Wrong state")
 	}
-	// log.Printf("[ProcessReservationStep] pre_status_change: %s \n   >> record: %v", rec.State, rec.UpdatedAt)
+	log.Printf("[ProcessReservationStep] pre_status_change: %s \n   >> record: %v", rec.State, rec.UpdatedAt)
 
 	rec.State = rec.Waiting
 	rec.Waiting = rec.WhatsNext()
 	rec.UpdatedAt = time.Now() // always show the last updated timestamp
 
-	// log.Printf("[ProcessReservationStep] mid_status_change: %s \n   >> record: %v", rec.State, rec.UpdatedAt)
+	log.Printf("[ProcessReservationStep] mid_status_change: %s \n   >> record: %v", rec.State, rec.UpdatedAt)
 	if rec.State == "done" {
 		tripID, err := app.SaveReservationToPostgres(rec)
 		if err != nil {
