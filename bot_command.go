@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
@@ -14,7 +15,7 @@ import (
 func (app *HailingApp) BotCommandHandler(replyToken string, lineUserID string, reply Reply) error {
 
 	text := strings.TrimSpace(reply.Text)
-	cmds := strings.Fields(text)
+	cmds := strings.Split(text, ":")
 	if len(cmds) == 0 {
 		return nil
 	}
@@ -23,7 +24,9 @@ func (app *HailingApp) BotCommandHandler(replyToken string, lineUserID string, r
 		return app.replyText(replyToken, err.Error())
 	}
 	cmd1 := strings.TrimPrefix(cmds[0], "/")
+	cmd1 = strings.ToLower(cmd1)
 	msgs := []linebot.SendingMessage{}
+	log.Printf("[BotCmd] %v", cmds)
 
 	switch cmd1 {
 	case "get":
@@ -31,8 +34,6 @@ func (app *HailingApp) BotCommandHandler(replyToken string, lineUserID string, r
 		// 		 for other steps
 		break
 	case "set":
-		// TODO: this is a different beast which will need to verify subcommand
-		// 		 for other steps
 		if len(cmds) < 3 {
 			return errors.New("missing arguments")
 		}

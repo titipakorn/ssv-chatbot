@@ -147,6 +147,10 @@ hash = "sha1-ae79ea1e9c6391a9ed83a2e18a031b835feec0c9"
 other = "To"
 
 [TravelMeter]
+hash = "sha1-4547d1acef093c449f91e129981cb51ee3fd4b58"
+other = "{{.Meter}} m"
+
+[TravelMeterWithFreeFlow]
 hash = "sha1-2c5cda3d4aa29825e08b09ff7486205631906a14"
 other = "{{.Meter}} m\n{{.FreeFlowMinute}} min w/o traffic"
 

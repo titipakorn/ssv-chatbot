@@ -67,6 +67,12 @@ func (app *HailingApp) extractReplyFromPostback(event *linebot.Event) error {
 	lineUserID := event.Source.UserID
 	log.Printf("[PostbackExtractor] %v\n     %v", data, event.Postback)
 	var reply Reply
+	if strings.HasPrefix(data, "/") {
+		reply = Reply{
+			Text: data,
+		}
+		return app.BotCommandHandler(event.ReplyToken, lineUserID, reply)
+	}
 
 	switch strings.ToLower(postbackType[0]) {
 	case "init":
@@ -989,7 +995,7 @@ func (app *HailingApp) TravelTimeFlexArray(record *ReservationRecord, localizer 
 		if carRoute.DurationInTraffic > carRoute.Duration {
 			travelLength = localizer.MustLocalize(&i18n.LocalizeConfig{
 				DefaultMessage: &i18n.Message{
-					ID:    "TravelMeter",
+					ID:    "TravelMeterWithFreeFlow",
 					Other: "{{.Meter}} m\n{{.FreeFlowMinute}} min w/o traffic",
 				},
 				TemplateData: map[string]string{
