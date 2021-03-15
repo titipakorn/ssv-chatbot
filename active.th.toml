@@ -147,8 +147,12 @@ hash = "sha1-ae79ea1e9c6391a9ed83a2e18a031b835feec0c9"
 other = "ไปยัง"
 
 [TravelMeter]
+hash = "sha1-4547d1acef093c449f91e129981cb51ee3fd4b58"
+other = "{{.Meter}} เมตร"
+
+[TravelMeterWithFreeFlow]
 hash = "sha1-2c5cda3d4aa29825e08b09ff7486205631906a14"
-other = "{{.Meter}} เมตร\n{{.FreeFlowMinute}} นาทีถ้าไม่มีรถติด"
+other = "{{.Meter}} เมตร\n{{.FreeFlowMinute}} นาทีถ้ารถไม่ติด"
 
 [TravelMinute]
 hash = "sha1-e9330ebf3f13f0e07de45b50b0b6a072157db2b9"
