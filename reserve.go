@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"regexp"
@@ -131,6 +132,16 @@ func (app *HailingApp) Cancel(userID string) (int64, error) {
 
 }
 
+// Cleanup meant to clear all redis cache out of the system
+func (app *HailingApp) Cleanup(userID string) error {
+	// if there is no tripID yet, then continue with cancel process
+	_, err := app.rdb.Del(userID).Result()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // NextStep will return next state and update the state of the record to that
 func (app *HailingApp) NextStep(userID string) (*ReservationRecord, string) {
 	rec, err := app.FindOrCreateRecord(userID)
@@ -177,7 +188,7 @@ func (record *ReservationRecord) IsComplete() (bool, string) {
 	if record.NumOfPassengers == 0 {
 		return false, "num_of_passengers"
 	}
-	if record.IsConfirmed == false {
+	if !record.IsConfirmed {
 		return false, "final"
 	}
 	return true, "done"
@@ -197,7 +208,6 @@ func (app *HailingApp) SaveRecordToRedis(record *ReservationRecord) error {
 
 // FindRecord : this is the one to ask if we have any reservation
 func (app *HailingApp) FindRecord(lineUserID string) (*ReservationRecord, error) {
-	// TODO: this will fallback to postgreSQL too.
 	result, err := app.rdb.Get(lineUserID).Result()
 	if err != nil || err == redis.Nil {
 		// Redis doesn't do, PostgreSQL will take over
@@ -262,25 +272,39 @@ func (app *HailingApp) InitReservation(user User) (*ReservationRecord, error) {
 	return &newRecord, nil
 }
 
+func (app *HailingApp) QuickReplyLocations(record *ReservationRecord) []QuickReplyButton {
+	// NOTE: it should consider user's history too actually
+	results := []QuickReplyButton{}
+	user, _, err := app.Localizer(record.LineUserID)
+	if err != nil {
+		return results
+	}
+	locations, err := app.GetLocations(user.Language, 4)
+	if err != nil {
+		return results
+	}
+	for _, loc := range locations {
+		if loc.Place.Coordinates == record.FromCoords || loc.Place.Coordinates == record.ToCoords {
+			continue
+		}
+		placeLabel := strings.Join([]string{"loc", fmt.Sprintf("%d", loc.ID), loc.Name}, ":")
+		results = append(results, QuickReplyButton{
+			Label: placeLabel,
+			Text:  loc.Name,
+		})
+		if len(results) == 3 { // 3 records max
+			break
+		}
+	}
+	return results
+}
+
 // QuestionToAsk returns a question appropriate for each state
-func (record *ReservationRecord) QuestionToAsk(localizer *i18n.Localizer) Question {
+func (app *HailingApp) QuestionToAsk(record *ReservationRecord, localizer *i18n.Localizer) Question {
 	// step: init -> to -> from -> when -> final -> done
 	switch strings.ToLower(record.Waiting) {
 	case "to":
-		buttons := []QuickReplyButton{
-			{
-				Label: "Condo A",
-				Text:  "Condo A",
-			},
-			{
-				Label: "CITI Resort",
-				Text:  "CITI Resort",
-			},
-			{
-				Label: "BTS Phromphong",
-				Text:  "BTS Phromphong",
-			},
-		}
+		buttons := app.QuickReplyLocations(record)
 		return Question{
 			Text: localizer.MustLocalize(&i18n.LocalizeConfig{
 				DefaultMessage: &i18n.Message{
@@ -292,20 +316,7 @@ func (record *ReservationRecord) QuestionToAsk(localizer *i18n.Localizer) Questi
 			LocationInput: true,
 		}
 	case "from":
-		buttons := []QuickReplyButton{
-			{
-				Label: "Condo A",
-				Text:  "Condo A",
-			},
-			{
-				Label: "CITI Resort",
-				Text:  "CITI Resort",
-			},
-			{
-				Label: "BTS Phromphong",
-				Text:  "BTS Phromphong",
-			},
-		}
+		buttons := app.QuickReplyLocations(record)
 		return Question{
 			Text: localizer.MustLocalize(&i18n.LocalizeConfig{
 				DefaultMessage: &i18n.Message{
@@ -407,6 +418,7 @@ func IsLocation(reply Reply) (bool, error) {
 		b, _ := ioutil.ReadFile("./static/service_area.json")
 		feature, _ := geojson.UnmarshalFeature(b)
 		pnt := orb.Point(reply.Coords)
+		// NOTE: change to postgis if accuracy needed
 		if planar.PolygonContains(feature.Geometry.Bound().ToPolygon(), pnt) {
 			return true, nil
 		}

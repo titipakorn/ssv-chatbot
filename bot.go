@@ -197,7 +197,7 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 		return app.BotCommandHandler(replyToken, lineUserID, reply)
 	}
 
-	_, localizer, err := app.Localizer(lineUserID)
+	user, localizer, err := app.Localizer(lineUserID)
 	if err != nil {
 		return app.replyText(err.Error())
 	}
@@ -213,7 +213,7 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 		log.Printf("[handleNextStep] location-option\n")
 		if _, err := app.bot.ReplyMessage(
 			replyToken,
-			app.LocationOptionFlex(localizer),
+			app.LocationOptionFlex(user.Language, localizer),
 			linebot.NewTextMessage(askLocation).
 				WithQuickReplies(linebot.NewQuickReplyItems(
 					linebot.NewQuickReplyButton(
@@ -371,8 +371,9 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 }
 
 func (app *HailingApp) replyQuestion(replyToken string, localizer *i18n.Localizer, record *ReservationRecord, msgs ...string) error {
-	question := record.QuestionToAsk(localizer)
-	if question.YesInput == true {
+	// question := record.QuestionToAsk(localizer)
+	question := app.QuestionToAsk(record, localizer)
+	if question.YesInput {
 		return app.replyFinalStep(replyToken, localizer, record)
 	}
 	if question.Text == "When?" {
@@ -519,8 +520,8 @@ func (app *HailingApp) replyMessage(replyToken string, messages ...linebot.Sendi
 }
 
 // LocationOptionFlex to send location options
-func (app *HailingApp) LocationOptionFlex(localizer *i18n.Localizer) linebot.SendingMessage {
-	locs, err := app.GetLocations(10)
+func (app *HailingApp) LocationOptionFlex(lang string, localizer *i18n.Localizer) linebot.SendingMessage {
+	locs, err := app.GetLocations(lang, 10)
 	if err != nil {
 		log.Printf("[LocationOptionFlex] db failed: %v\n", err)
 		return nil

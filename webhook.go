@@ -131,6 +131,7 @@ func (app *HailingApp) Webhook(w http.ResponseWriter, req *http.Request) {
 		tripID := newData.ID
 		msg := app.StarFeedbackFlex(tripID, localizer)
 		app.PushNotification(user.LineUserID, msg)
+		app.Cleanup(user.LineUserID)
 	}
 
 	msg := Response{Message: "success"}
