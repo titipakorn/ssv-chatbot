@@ -69,17 +69,24 @@ func (app *HailingApp) GetLocationByID(ID int) (*Location, error) {
 }
 
 // GetLocations return most popular locations
-func (app *HailingApp) GetLocations(total int) ([]Location, error) {
+func (app *HailingApp) GetLocations(lang string, total int) ([]Location, error) {
 	results := []Location{}
 	maxTotal := 10
 	if total < 1 || total > maxTotal {
 		total = maxTotal
 	}
-
-	rows, err := app.pdb.Query(`SELECT id, name, ST_AsGeoJSON(place)
+	fieldName := "name"
+	switch lang {
+	case "ja":
+		fieldName = "name_ja"
+	case "th":
+		fieldName = "name_th"
+	}
+	q := fmt.Sprintf(`SELECT id, %s, ST_AsGeoJSON(place)
 		FROM location
 		ORDER BY popularity DESC
-		LIMIT $1`, total)
+		LIMIT $1`, fieldName)
+	rows, err := app.pdb.Query(q, total)
 	if err != nil {
 		return nil, err
 	}

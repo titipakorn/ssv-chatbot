@@ -407,6 +407,7 @@ func IsLocation(reply Reply) (bool, error) {
 		b, _ := ioutil.ReadFile("./static/service_area.json")
 		feature, _ := geojson.UnmarshalFeature(b)
 		pnt := orb.Point(reply.Coords)
+		// NOTE: change to postgis if accuracy needed
 		if planar.PolygonContains(feature.Geometry.Bound().ToPolygon(), pnt) {
 			return true, nil
 		}
