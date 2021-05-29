@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"regexp"
@@ -271,26 +272,39 @@ func (app *HailingApp) InitReservation(user User) (*ReservationRecord, error) {
 	return &newRecord, nil
 }
 
+func (app *HailingApp) QuickReplyLocations(record *ReservationRecord) []QuickReplyButton {
+	// NOTE: it should consider user's history too actually
+	results := []QuickReplyButton{}
+	user, _, err := app.Localizer(record.LineUserID)
+	if err != nil {
+		return results
+	}
+	locations, err := app.GetLocations(user.Language, 4)
+	if err != nil {
+		return results
+	}
+	for _, loc := range locations {
+		if loc.Place.Coordinates == record.FromCoords || loc.Place.Coordinates == record.ToCoords {
+			continue
+		}
+		placeLabel := strings.Join([]string{"loc", fmt.Sprintf("%d", loc.ID), loc.Name}, ":")
+		results = append(results, QuickReplyButton{
+			Label: placeLabel,
+			Text:  loc.Name,
+		})
+		if len(results) == 3 { // 3 records max
+			break
+		}
+	}
+	return results
+}
+
 // QuestionToAsk returns a question appropriate for each state
-func (record *ReservationRecord) QuestionToAsk(localizer *i18n.Localizer) Question {
+func (app *HailingApp) QuestionToAsk(record *ReservationRecord, localizer *i18n.Localizer) Question {
 	// step: init -> to -> from -> when -> final -> done
 	switch strings.ToLower(record.Waiting) {
 	case "to":
-		// TODO: make this dynamic
-		buttons := []QuickReplyButton{
-			{
-				Label: "Condo A",
-				Text:  "Condo A",
-			},
-			{
-				Label: "CITI Resort",
-				Text:  "CITI Resort",
-			},
-			{
-				Label: "BTS Phromphong",
-				Text:  "BTS Phromphong",
-			},
-		}
+		buttons := app.QuickReplyLocations(record)
 		return Question{
 			Text: localizer.MustLocalize(&i18n.LocalizeConfig{
 				DefaultMessage: &i18n.Message{
@@ -302,21 +316,7 @@ func (record *ReservationRecord) QuestionToAsk(localizer *i18n.Localizer) Questi
 			LocationInput: true,
 		}
 	case "from":
-		// TODO: make this dynamic
-		buttons := []QuickReplyButton{
-			{
-				Label: "Condo A",
-				Text:  "Condo A",
-			},
-			{
-				Label: "CITI Resort",
-				Text:  "CITI Resort",
-			},
-			{
-				Label: "BTS Phromphong",
-				Text:  "BTS Phromphong",
-			},
-		}
+		buttons := app.QuickReplyLocations(record)
 		return Question{
 			Text: localizer.MustLocalize(&i18n.LocalizeConfig{
 				DefaultMessage: &i18n.Message{
