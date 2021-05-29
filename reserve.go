@@ -131,6 +131,16 @@ func (app *HailingApp) Cancel(userID string) (int64, error) {
 
 }
 
+// Cleanup meant to clear all redis cache out of the system
+func (app *HailingApp) Cleanup(userID string) error {
+	// if there is no tripID yet, then continue with cancel process
+	_, err := app.rdb.Del(userID).Result()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // NextStep will return next state and update the state of the record to that
 func (app *HailingApp) NextStep(userID string) (*ReservationRecord, string) {
 	rec, err := app.FindOrCreateRecord(userID)
@@ -177,7 +187,7 @@ func (record *ReservationRecord) IsComplete() (bool, string) {
 	if record.NumOfPassengers == 0 {
 		return false, "num_of_passengers"
 	}
-	if record.IsConfirmed == false {
+	if !record.IsConfirmed {
 		return false, "final"
 	}
 	return true, "done"
@@ -197,7 +207,6 @@ func (app *HailingApp) SaveRecordToRedis(record *ReservationRecord) error {
 
 // FindRecord : this is the one to ask if we have any reservation
 func (app *HailingApp) FindRecord(lineUserID string) (*ReservationRecord, error) {
-	// TODO: this will fallback to postgreSQL too.
 	result, err := app.rdb.Get(lineUserID).Result()
 	if err != nil || err == redis.Nil {
 		// Redis doesn't do, PostgreSQL will take over
@@ -267,6 +276,7 @@ func (record *ReservationRecord) QuestionToAsk(localizer *i18n.Localizer) Questi
 	// step: init -> to -> from -> when -> final -> done
 	switch strings.ToLower(record.Waiting) {
 	case "to":
+		// TODO: make this dynamic
 		buttons := []QuickReplyButton{
 			{
 				Label: "Condo A",
@@ -292,6 +302,7 @@ func (record *ReservationRecord) QuestionToAsk(localizer *i18n.Localizer) Questi
 			LocationInput: true,
 		}
 	case "from":
+		// TODO: make this dynamic
 		buttons := []QuickReplyButton{
 			{
 				Label: "Condo A",
