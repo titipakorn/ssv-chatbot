@@ -81,6 +81,7 @@ func (app *HailingApp) Webhook(w http.ResponseWriter, req *http.Request) {
 	user, _ := app.FindUserByID(newData.UserID)
 	localizer := i18n.NewLocalizer(app.i18nBundle, user.Language)
 	bkk, _ := time.LoadLocation("Asia/Bangkok")
+	// FIXME: localizer doesn't seem to work here somehow. It return English while lang is th.
 	if oldData.AcceptedAt == nil && newData.AcceptedAt != nil {
 		// notify
 		bkkReservedTime := newData.ReservedAt.In(bkk)

@@ -287,11 +287,21 @@ func (app *HailingApp) QuickReplyLocations(record *ReservationRecord) []QuickRep
 		if loc.Place.Coordinates == record.FromCoords || loc.Place.Coordinates == record.ToCoords {
 			continue
 		}
-		placeLabel := strings.Join([]string{"loc", fmt.Sprintf("%d", loc.ID), loc.Name}, ":")
+		txt := strings.Join([]string{"loc", fmt.Sprintf("%d", loc.ID), loc.Name}, ":")
+		// label must be less than 20-char
+		re_citi := regexp.MustCompile(`(?i)citi resort`)
+		label := re_citi.ReplaceAllString(loc.Name, "CITI")
+		label = strings.ReplaceAll(label, "Sukhumvit 39", "")
+		re_branch := regexp.MustCompile(`(?i)\(.*(\d)\)`)
+		label = re_branch.ReplaceAllString(label, `$1`)
+		re_space := regexp.MustCompile(` +`)
+		label = re_space.ReplaceAllString(label, " ")
+
 		results = append(results, QuickReplyButton{
-			Label: placeLabel,
-			Text:  loc.Name,
+			Label: label,
+			Text:  txt,
 		})
+
 		if len(results) == 3 { // 3 records max
 			break
 		}

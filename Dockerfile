@@ -12,5 +12,6 @@ EXPOSE 8000
 WORKDIR /app
 
 COPY --from=builder /server /app/
+COPY *.toml /app/
 
 CMD [ "/app/server" ]
