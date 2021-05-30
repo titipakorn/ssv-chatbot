@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/paulmach/orb"
+	"github.com/paulmach/orb/encoding/wkb"
 )
 
 // User stores user information
@@ -183,9 +186,14 @@ func (app *HailingApp) SaveReservationToPostgres(rec *ReservationRecord) (int, e
 		placeTo := fmt.Sprintf("POINT(%.8f %.8f)", rec.ToCoords[0], rec.ToCoords[1])
 		// insert if no trip_id yet
 		err := app.pdb.QueryRow(`
-		INSERT INTO trip("user_id", "from", "place_from", "to", "place_to", "reserved_at", "polyline")
-		VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id
-		`, rec.UserID, rec.From, placeFrom, rec.To, placeTo, rec.ReservedAt, rec.Polyline).Scan(&tripID)
+		INSERT INTO trip(
+			"user_id", "from", "place_from", "to", "place_to",
+			"reserved_at", "polyline", "no_passengers"
+		)
+		VALUES($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+			rec.UserID, rec.From, placeFrom, rec.To, placeTo,
+			rec.ReservedAt, rec.Polyline, rec.NumOfPassengers,
+		).Scan(&tripID)
 		if err != nil {
 			log.Printf("[save2psql-create] %v", err)
 			return -1, err
@@ -208,18 +216,31 @@ func (app *HailingApp) SaveReservationToPostgres(rec *ReservationRecord) (int, e
 // FindActiveReservation query from postgresql and put in redis
 func (app *HailingApp) FindActiveReservation(lineUserID string) (*ReservationRecord, error) {
 	record := ReservationRecord{LineUserID: lineUserID, State: "done", IsConfirmed: true}
+
+	var pFrom orb.Point
+	var pTo orb.Point
+	var pickedUpAt sql.NullTime
 	err := app.pdb.QueryRow(`
 	SELECT
-		"id", "user_id", "from", "to", "place_from", "place_to",
-		"reserved_at", "picked_up_at", "polyline"
-	FROM "trip"
-	WHERE user_id=$1
-		AND dropped_off_at = null
-		AND cancelled_at = null`, lineUserID).Scan(
-		&record.TripID, &record.UserID, &record.From, &record.To,
-		&record.FromCoords, &record.ToCoords, &record.ReservedAt,
-		&record.PickedUpAt, &record.Polyline,
+		t.id, t.user_id,
+		t.from, t.to, t.reserved_at,
+		t.picked_up_at, t.polyline, t.no_passengers,
+		ST_AsBinary(t.place_from), ST_AsBinary(t.place_to)
+	FROM "trip" t
+	LEFT JOIN "user" u ON t.user_id = u.id
+	WHERE u.line_user_id = $1
+		AND t.dropped_off_at is null
+		AND t.cancelled_at is null`, lineUserID).Scan(
+		&record.TripID, &record.UserID,
+		&record.From, &record.To, &record.ReservedAt,
+		&pickedUpAt, &record.Polyline, &record.NumOfPassengers,
+		wkb.Scanner(&pFrom), wkb.Scanner(&pTo),
 	)
+	record.FromCoords = [2]float64{pFrom.Lon(), pFrom.Lat()}
+	record.ToCoords = [2]float64{pTo.Lon(), pTo.Lat()}
+	if pickedUpAt.Valid {
+		record.PickedUpAt = pickedUpAt.Time
+	}
 	if err != nil {
 		// log.Printf("[FindActiveReservation] %v", err)
 		return nil, err

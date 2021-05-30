@@ -230,16 +230,11 @@ func (app *HailingApp) FindRecord(lineUserID string) (*ReservationRecord, error)
 // FindOrCreateRecord : this is the one to start everything
 func (app *HailingApp) FindOrCreateRecord(lineUserID string) (*ReservationRecord, error) {
 	// fmt.Println("Reserve: ", lineUserID)
-	result, err := app.rdb.Get(lineUserID).Result()
-	if err == redis.Nil {
-		log.Println("[FindOrCreateRecord] init new one")
+	rec, err := app.FindRecord(lineUserID)
+	if err != nil {
 		return app.initReservation(lineUserID)
-	} else if err != nil {
-		return nil, errors.New("There is a problem")
 	}
-	var rec ReservationRecord
-	json.Unmarshal([]byte(result), &rec)
-	return &rec, nil
+	return rec, nil
 }
 
 func (app *HailingApp) initReservation(lineUserID string) (*ReservationRecord, error) {
@@ -287,11 +282,21 @@ func (app *HailingApp) QuickReplyLocations(record *ReservationRecord) []QuickRep
 		if loc.Place.Coordinates == record.FromCoords || loc.Place.Coordinates == record.ToCoords {
 			continue
 		}
-		placeLabel := strings.Join([]string{"loc", fmt.Sprintf("%d", loc.ID), loc.Name}, ":")
+		txt := strings.Join([]string{"loc", fmt.Sprintf("%d", loc.ID), loc.Name}, ":")
+		// label must be less than 20-char
+		re_citi := regexp.MustCompile(`(?i)citi resort`)
+		label := re_citi.ReplaceAllString(loc.Name, "CITI")
+		label = strings.ReplaceAll(label, "Sukhumvit 39", "")
+		re_branch := regexp.MustCompile(`(?i)\(.*(\d)\)`)
+		label = re_branch.ReplaceAllString(label, `$1`)
+		re_space := regexp.MustCompile(` +`)
+		label = re_space.ReplaceAllString(label, " ")
+
 		results = append(results, QuickReplyButton{
-			Label: placeLabel,
-			Text:  loc.Name,
+			Label: label,
+			Text:  txt,
 		})
+
 		if len(results) == 3 { // 3 records max
 			break
 		}
@@ -313,7 +318,7 @@ func (app *HailingApp) QuestionToAsk(record *ReservationRecord, localizer *i18n.
 				},
 			}),
 			Buttons:       buttons,
-			LocationInput: true,
+			LocationInput: false,
 		}
 	case "from":
 		buttons := app.QuickReplyLocations(record)
@@ -325,7 +330,7 @@ func (app *HailingApp) QuestionToAsk(record *ReservationRecord, localizer *i18n.
 				},
 			}),
 			Buttons:       buttons,
-			LocationInput: true,
+			LocationInput: false,
 		}
 	case "when":
 		buttons := []QuickReplyButton{
@@ -414,6 +419,7 @@ func (app *HailingApp) QuestionToAsk(record *ReservationRecord, localizer *i18n.
 
 // IsLocation validates if the location is in the service area
 func IsLocation(reply Reply) (bool, error) {
+	/// TODO: handle "loc:15:Living @ CITI RESORT"
 	if reply.Coords != [2]float64{0, 0} {
 		b, _ := ioutil.ReadFile("./static/service_area.json")
 		feature, _ := geojson.UnmarshalFeature(b)
@@ -567,17 +573,26 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 		}
 	case "done":
 		// nothing to save here save record to postgres
-	case "pickup":
-		// 1st case is "modify-pickup-time"
+	// case "pickup":  //
+	// 1st case is "modify-pickup-time"
+	// if reply.Text == "modify-pickup-time" {
+	// 	tm, err := isTime(reply)
+	// 	if err != nil {
+	// 		return rec, err
+	// 	}
+	// 	rec.ReservedAt = *tm
+	// }
+	default:
+		// or "pickup" state -- it could
 		if reply.Text == "modify-pickup-time" {
 			tm, err := isTime(reply)
 			if err != nil {
 				return rec, err
 			}
 			rec.ReservedAt = *tm
+		} else {
+			return rec, errors.New("Wrong state")
 		}
-	default:
-		return rec, errors.New("Wrong state")
 	}
 	log.Printf("[ProcessReservationStep] pre_status_change: %s \n   >> record: %v", rec.State, rec.UpdatedAt)
 
