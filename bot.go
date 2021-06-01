@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -105,6 +106,19 @@ func (app *HailingApp) extractReplyFromPostback(event *linebot.Event) error {
 			reply = Reply{Text: data} // include everything e.g. location:BTSxxx
 		} else {
 			return app.UnhandledCase(event.ReplyToken)
+		}
+	case "loc":
+		locID, err := strconv.Atoi(postbackType[1])
+		if err != nil {
+			log.Println(err)
+		}
+		locationItem, err := app.GetLocationByID(locID)
+		if err != nil {
+			log.Println(err)
+		}
+		reply = Reply{
+			Text:   locationItem.Name,
+			Coords: locationItem.Place.Coordinates,
 		}
 	case "star-feedback":
 		if len(postbackType) != 3 {
@@ -439,8 +453,10 @@ func (app *HailingApp) replyBack(replyToken string, question Question, messages 
 	replyItems := linebot.NewQuickReplyItems()
 	itemTotal := len(question.Buttons)
 	if question.LocationInput {
-		itemTotal = itemTotal + 2
+		// disable send location
+		// itemTotal = itemTotal + 2
 		// 1. send location, 2. more options
+		itemTotal++
 	}
 	if question.DatetimeInput {
 		itemTotal++
@@ -449,20 +465,28 @@ func (app *HailingApp) replyBack(replyToken string, question Question, messages 
 	ind := 0
 	for i := 0; i < len(question.Buttons); i++ {
 		btn := question.Buttons[i]
-		qrBtn := linebot.NewQuickReplyButton(
-			app.appBaseURL+"/static/quick/pin.png",
-			linebot.NewMessageAction(btn.Label, btn.Text),
-		)
+		var qrBtn *linebot.QuickReplyButton
+		if btn.Type == "postback" {
+			qrBtn = linebot.NewQuickReplyButton(
+				app.appBaseURL+"/static/quick/pin.png",
+				linebot.NewPostbackAction(btn.Label, btn.Data, "", btn.Label),
+			)
+		} else {
+			qrBtn = linebot.NewQuickReplyButton(
+				app.appBaseURL+"/static/quick/pin.png",
+				linebot.NewMessageAction(btn.Label, btn.Text),
+			)
+		}
 		items[i] = qrBtn
 		ind++
 	}
 	if question.LocationInput == true {
 		// pickup from map
-		items[ind] = linebot.NewQuickReplyButton(
-			app.appBaseURL+"/static/quick/pin.png",
-			linebot.NewLocationAction("Send location"),
-		)
-		ind++
+		// items[ind] = linebot.NewQuickReplyButton(
+		// 	app.appBaseURL+"/static/quick/pin.png",
+		// 	linebot.NewLocationAction("Send location"),
+		// )
+		// ind++
 		// more options
 		items[ind] = linebot.NewQuickReplyButton(
 			"",
