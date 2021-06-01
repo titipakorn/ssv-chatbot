@@ -297,7 +297,7 @@ func (app *HailingApp) QuickReplyLocations(record *ReservationRecord) []QuickRep
 
 		results = append(results, QuickReplyButton{
 			Label: label,
-			Text:  txt,
+			Text:  "",
 			Type:  "postback",
 			Data:  txt,
 		})
@@ -424,7 +424,6 @@ func (app *HailingApp) QuestionToAsk(record *ReservationRecord, localizer *i18n.
 
 // IsLocation validates if the location is in the service area
 func IsLocation(reply Reply) (bool, error) {
-	/// TODO: handle "loc:15:Living @ CITI RESORT"
 	if reply.Coords != [2]float64{0, 0} {
 		b, _ := ioutil.ReadFile("./static/service_area.json")
 		feature, _ := geojson.UnmarshalFeature(b)
@@ -508,6 +507,10 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 		if reply.Coords != [2]float64{0, 0} {
 			rec.From = "custom"
 			rec.FromCoords = reply.Coords
+			// if it's not from LocationInput
+			if strings.Index(reply.Text, "location:") == -1 {
+				rec.From = reply.Text
+			}
 		} else {
 			locPostback := strings.Split(reply.Text, ":")
 			if len(locPostback) > 1 && locPostback[0] == "location" {
@@ -536,6 +539,10 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 		if reply.Coords != [2]float64{0, 0} {
 			rec.To = "custom"
 			rec.ToCoords = reply.Coords
+			// if it's not from LocationInput
+			if strings.Index(reply.Text, "location:") == -1 {
+				rec.To = reply.Text
+			}
 		} else {
 			locPostback := strings.Split(reply.Text, ":")
 			if len(locPostback) > 1 && locPostback[0] == "location" {

@@ -117,7 +117,7 @@ func (app *HailingApp) extractReplyFromPostback(event *linebot.Event) error {
 			log.Println(err)
 		}
 		reply = Reply{
-			Text:   postbackType[2],
+			Text:   locationItem.Name,
 			Coords: locationItem.Place.Coordinates,
 		}
 	case "star-feedback":
@@ -469,7 +469,7 @@ func (app *HailingApp) replyBack(replyToken string, question Question, messages 
 		if btn.Type == "postback" {
 			qrBtn = linebot.NewQuickReplyButton(
 				app.appBaseURL+"/static/quick/pin.png",
-				linebot.NewPostbackAction(btn.Label, btn.Data, btn.Text, btn.Label),
+				linebot.NewPostbackAction(btn.Label, btn.Data, "", btn.Label),
 			)
 		} else {
 			qrBtn = linebot.NewQuickReplyButton(
