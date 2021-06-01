@@ -573,17 +573,26 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 		}
 	case "done":
 		// nothing to save here save record to postgres
-	case "pickup":
-		// 1st case is "modify-pickup-time"
+	// case "pickup":  //
+	// 1st case is "modify-pickup-time"
+	// if reply.Text == "modify-pickup-time" {
+	// 	tm, err := isTime(reply)
+	// 	if err != nil {
+	// 		return rec, err
+	// 	}
+	// 	rec.ReservedAt = *tm
+	// }
+	default:
+		// or "pickup" state -- it could
 		if reply.Text == "modify-pickup-time" {
 			tm, err := isTime(reply)
 			if err != nil {
 				return rec, err
 			}
 			rec.ReservedAt = *tm
+		} else {
+			return rec, errors.New("Wrong state")
 		}
-	default:
-		return rec, errors.New("Wrong state")
 	}
 	log.Printf("[ProcessReservationStep] pre_status_change: %s \n   >> record: %v", rec.State, rec.UpdatedAt)
 
