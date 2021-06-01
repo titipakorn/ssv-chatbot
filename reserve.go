@@ -48,10 +48,13 @@ type Reply struct {
 }
 
 // QuickReplyButton contains necessary info for linebot.NewQuickReplyButton
+// either postback or message is fine. Type & Data are for Postback
 type QuickReplyButton struct {
 	Image string `json:"image"`
 	Label string `json:"label"`
 	Text  string `json:"text"`
+	Type  string
+	Data  string
 }
 
 // Question contains what's the message and extra options for Chatbot
@@ -295,6 +298,8 @@ func (app *HailingApp) QuickReplyLocations(record *ReservationRecord) []QuickRep
 		results = append(results, QuickReplyButton{
 			Label: label,
 			Text:  txt,
+			Type:  "postback",
+			Data:  txt,
 		})
 
 		if len(results) == 3 { // 3 records max
@@ -318,7 +323,7 @@ func (app *HailingApp) QuestionToAsk(record *ReservationRecord, localizer *i18n.
 				},
 			}),
 			Buttons:       buttons,
-			LocationInput: false,
+			LocationInput: true,
 		}
 	case "from":
 		buttons := app.QuickReplyLocations(record)
@@ -330,7 +335,7 @@ func (app *HailingApp) QuestionToAsk(record *ReservationRecord, localizer *i18n.
 				},
 			}),
 			Buttons:       buttons,
-			LocationInput: false,
+			LocationInput: true,
 		}
 	case "when":
 		buttons := []QuickReplyButton{
