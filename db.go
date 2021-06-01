@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/paulmach/orb"
+	"github.com/paulmach/orb/encoding/wkb"
 )
 
 // User stores user information
@@ -208,18 +210,24 @@ func (app *HailingApp) SaveReservationToPostgres(rec *ReservationRecord) (int, e
 // FindActiveReservation query from postgresql and put in redis
 func (app *HailingApp) FindActiveReservation(lineUserID string) (*ReservationRecord, error) {
 	record := ReservationRecord{LineUserID: lineUserID, State: "done", IsConfirmed: true}
+
+	var pFrom orb.Point
+	var pTo orb.Point
 	err := app.pdb.QueryRow(`
 	SELECT
-		"id", "user_id", "from", "to", "place_from", "place_to",
-		"reserved_at", "picked_up_at", "polyline"
-	FROM "trip"
-	WHERE user_id=$1
-		AND dropped_off_at = null
-		AND cancelled_at = null`, lineUserID).Scan(
+		t."id", t."user_id", t."from", t."to", t."place_from", t."place_to",
+		"reserved_at", t."picked_up_at", t."polyline"
+	FROM "trip" t
+	LEFT JOIN "user" u ON t.user_id = u.id
+	WHERE u.line_user_id = $1
+		AND t.dropped_off_at is null
+		AND t.cancelled_at is null`, lineUserID).Scan(
 		&record.TripID, &record.UserID, &record.From, &record.To,
-		&record.FromCoords, &record.ToCoords, &record.ReservedAt,
+		wkb.Scanner(&pFrom), wkb.Scanner(&pTo), &record.ReservedAt,
 		&record.PickedUpAt, &record.Polyline,
 	)
+	record.FromCoords = [2]float64{pFrom.Lon(), pFrom.Lat()}
+	record.ToCoords = [2]float64{pTo.Lon(), pTo.Lat()}
 	if err != nil {
 		// log.Printf("[FindActiveReservation] %v", err)
 		return nil, err

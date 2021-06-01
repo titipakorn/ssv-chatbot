@@ -230,16 +230,11 @@ func (app *HailingApp) FindRecord(lineUserID string) (*ReservationRecord, error)
 // FindOrCreateRecord : this is the one to start everything
 func (app *HailingApp) FindOrCreateRecord(lineUserID string) (*ReservationRecord, error) {
 	// fmt.Println("Reserve: ", lineUserID)
-	result, err := app.rdb.Get(lineUserID).Result()
-	if err == redis.Nil {
-		log.Println("[FindOrCreateRecord] init new one")
+	rec, err := app.FindRecord(lineUserID)
+	if err != nil {
 		return app.initReservation(lineUserID)
-	} else if err != nil {
-		return nil, errors.New("There is a problem")
 	}
-	var rec ReservationRecord
-	json.Unmarshal([]byte(result), &rec)
-	return &rec, nil
+	return rec, nil
 }
 
 func (app *HailingApp) initReservation(lineUserID string) (*ReservationRecord, error) {
@@ -424,6 +419,7 @@ func (app *HailingApp) QuestionToAsk(record *ReservationRecord, localizer *i18n.
 
 // IsLocation validates if the location is in the service area
 func IsLocation(reply Reply) (bool, error) {
+	/// TODO: handle "loc:15:Living @ CITI RESORT"
 	if reply.Coords != [2]float64{0, 0} {
 		b, _ := ioutil.ReadFile("./static/service_area.json")
 		feature, _ := geojson.UnmarshalFeature(b)
