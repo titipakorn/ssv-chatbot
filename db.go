@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -213,21 +214,26 @@ func (app *HailingApp) FindActiveReservation(lineUserID string) (*ReservationRec
 
 	var pFrom orb.Point
 	var pTo orb.Point
+	var pickedUpAt sql.NullTime
 	err := app.pdb.QueryRow(`
 	SELECT
-		t."id", t."user_id", t."from", t."to", t."place_from", t."place_to",
-		"reserved_at", t."picked_up_at", t."polyline"
+		t.id, t.user_id, t.from, t.to,
+		t.reserved_at, t.picked_up_at, t.polyline,
+		ST_AsBinary(t.place_from), ST_AsBinary(t.place_to)
 	FROM "trip" t
 	LEFT JOIN "user" u ON t.user_id = u.id
 	WHERE u.line_user_id = $1
 		AND t.dropped_off_at is null
 		AND t.cancelled_at is null`, lineUserID).Scan(
 		&record.TripID, &record.UserID, &record.From, &record.To,
-		wkb.Scanner(&pFrom), wkb.Scanner(&pTo), &record.ReservedAt,
-		&record.PickedUpAt, &record.Polyline,
+		&record.ReservedAt, &pickedUpAt, &record.Polyline,
+		wkb.Scanner(&pFrom), wkb.Scanner(&pTo),
 	)
 	record.FromCoords = [2]float64{pFrom.Lon(), pFrom.Lat()}
 	record.ToCoords = [2]float64{pTo.Lon(), pTo.Lat()}
+	if pickedUpAt.Valid {
+		record.PickedUpAt = pickedUpAt.Time
+	}
 	if err != nil {
 		// log.Printf("[FindActiveReservation] %v", err)
 		return nil, err
