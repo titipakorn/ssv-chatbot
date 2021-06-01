@@ -318,7 +318,7 @@ func (app *HailingApp) QuestionToAsk(record *ReservationRecord, localizer *i18n.
 				},
 			}),
 			Buttons:       buttons,
-			LocationInput: true,
+			LocationInput: false,
 		}
 	case "from":
 		buttons := app.QuickReplyLocations(record)
@@ -330,7 +330,7 @@ func (app *HailingApp) QuestionToAsk(record *ReservationRecord, localizer *i18n.
 				},
 			}),
 			Buttons:       buttons,
-			LocationInput: true,
+			LocationInput: false,
 		}
 	case "when":
 		buttons := []QuickReplyButton{
