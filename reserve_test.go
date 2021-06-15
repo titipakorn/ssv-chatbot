@@ -253,6 +253,7 @@ func TestQuestionFromEachState(t *testing.T) {
 		State:   "init",
 		Waiting: "to",
 	}
+	// FIXME: no longer use record.QuestionToAsk, but app.QuestionToAsk
 	q1 := record.QuestionToAsk(localizer)
 	fmt.Println(q1)
 	if q1.Text != "Where to?" {
