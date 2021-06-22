@@ -113,7 +113,7 @@ func (record *ReservationRecord) WhatsNext() string {
 }
 
 // Cancel : to cancel this reservation
-func (app *HailingApp) Cancel(userID string) (int64, error) {
+func (app *HailingApp) Cancel(userID string) (int, error) {
 	rec, err := app.FindRecord(userID)
 	if err != nil {
 		// if record not found, it's good
@@ -127,11 +127,11 @@ func (app *HailingApp) Cancel(userID string) (int64, error) {
 		}
 	}
 	// if there is no tripID yet, then continue with cancel process
-	n, err := app.rdb.Del(userID).Result()
+	_, err = app.rdb.Del(userID).Result()
 	if err != nil {
 		return -1, err
 	}
-	return n, nil
+	return rec.TripID, nil
 
 }
 
