@@ -39,6 +39,16 @@ func (app *HailingApp) BotCommandHandler(replyToken string, lineUserID string, r
 		}
 		if cmds[1] == "language" {
 			return app.LanguageHandler(replyToken, lineUserID, cmds[2])
+		} else if cmds[1] == "cancel-reason" {
+			// TODO: [cancel] Store reason to trip record
+			tripID := cmds[2]
+			cancelReason := cmds[3]
+			log.Printf("Trip #%s cancelled because of %s", tripID, cancelReason)
+			_, err := app.UpdateCancellationReason(tripID, cancelReason)
+			if err != nil {
+				return errors.New("Updating cancellation reason failed")
+			}
+			return app.EndOfCancellation(replyToken, localizer)
 		}
 	case "language":
 	case "lang":
@@ -118,26 +128,40 @@ func (app *HailingApp) LanguageHandler(replyToken string, lineUserID string, lan
 
 // CancelHandler takes care of the reservation cancellation
 func (app *HailingApp) CancelHandler(replyToken string, lineUserID string) error {
-	total, err := app.Cancel(lineUserID)
+	tripID, err := app.Cancel(lineUserID)
 	if err != nil {
 		errMsg := fmt.Sprintf("%v", err)
 		return app.replyText(replyToken, errMsg)
 	}
 	_, localizer, err := app.Localizer(lineUserID)
+	// TODO: [cancel] delete this
+	// cancelText := localizer.MustLocalize(&i18n.LocalizeConfig{
+	// 	DefaultMessage: &i18n.Message{
+	// 		ID:    "ReservationCancelled",
+	// 		Other: "Your reservation cancelled.",
+	// 	},
+	// })
+	if err != nil {
+		return app.replyText(replyToken, err.Error())
+	}
+	if tripID > 0 {
+		// TODO: [cancel] test this
+		msg := app.CancellationFeedback(localizer, tripID)
+		return app.replyMessage(replyToken, msg)
+		// return app.replyText(replyToken, cancelText)
+	}
+	return nil
+
+}
+
+func (app *HailingApp) EndOfCancellation(replyToken string, localizer *i18n.Localizer) error {
 	cancelText := localizer.MustLocalize(&i18n.LocalizeConfig{
 		DefaultMessage: &i18n.Message{
 			ID:    "ReservationCancelled",
 			Other: "Your reservation cancelled.",
 		},
 	})
-	if err != nil {
-		return app.replyText(replyToken, err.Error())
-	}
-	if total > 0 {
-		return app.replyText(replyToken, cancelText)
-	}
-	return nil
-
+	return app.replyText(replyToken, cancelText)
 }
 
 // FeedbackHandler takes care of the reservation feedback

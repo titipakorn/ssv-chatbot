@@ -1351,6 +1351,114 @@ func (app *HailingApp) LanguageOptionFlex(localizer *i18n.Localizer) linebot.Sen
 	return linebot.NewFlexMessage(altText, contents)
 }
 
+// CancellationFeedback push Flex message for cancellation feedback
+func (app *HailingApp) CancellationFeedback(localizer *i18n.Localizer, tripID int) linebot.SendingMessage {
+	title := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "CancellationQuestionTitle",
+			Other: "Please tell us the reason why you cancelled this time.",
+		},
+	})
+	ans1 := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "CancellationAnswerWaitTooLong",
+			Other: "Too long waiting time",
+		},
+	})
+	ans2 := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "CancellationAnswerNoLongerNeed",
+			Other: "No longer need a ride",
+		},
+	})
+	ans3 := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "CancellationAnswerTakeAnotherMode",
+			Other: "Take another mobility mode",
+		},
+	})
+	ans4 := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "CancellationAnswerWalk",
+			Other: "Decide to walk instead",
+		},
+	})
+
+	postbackFormat := "/set:cancel-reason:%d:%s"
+
+	elements := []linebot.FlexComponent{
+		// TODO: delete this
+		// &linebot.TextComponent{
+		// 	Type:   linebot.FlexComponentTypeText,
+		// 	Text:   title,
+		// 	Weight: linebot.FlexTextWeightTypeBold,
+		// 	Size:   linebot.FlexTextSizeTypeLg,
+		// 	Wrap:   true,
+		// },
+		&linebot.TextComponent{
+			Type:   linebot.FlexComponentTypeText,
+			Text:   title,
+			Wrap:   true,
+			Weight: linebot.FlexTextWeightTypeRegular,
+			Size:   linebot.FlexTextSizeTypeMd,
+		},
+		&linebot.ButtonComponent{
+			Height: linebot.FlexButtonHeightTypeMd,
+			Style:  linebot.FlexButtonStyleTypeLink,
+			Action: linebot.NewPostbackAction(
+				ans1,
+				fmt.Sprintf(postbackFormat, tripID, "wait-too-long"), "", ""),
+		},
+		&linebot.ButtonComponent{
+			Height: linebot.FlexButtonHeightTypeMd,
+			Style:  linebot.FlexButtonStyleTypeLink,
+			Action: linebot.NewPostbackAction(
+				ans2,
+				fmt.Sprintf(postbackFormat, tripID, "no-longer-need"), "", ""),
+		},
+		&linebot.ButtonComponent{
+			Height: linebot.FlexButtonHeightTypeMd,
+			Style:  linebot.FlexButtonStyleTypeLink,
+			Action: linebot.NewPostbackAction(
+				ans3,
+				fmt.Sprintf(postbackFormat, tripID, "take-another-mod"), "", ""),
+		},
+		&linebot.ButtonComponent{
+			Height: linebot.FlexButtonHeightTypeMd,
+			Style:  linebot.FlexButtonStyleTypeLink,
+			Action: linebot.NewPostbackAction(
+				ans4,
+				fmt.Sprintf(postbackFormat, tripID, "walk"), "", ""),
+		},
+	}
+
+	contents := &linebot.BubbleContainer{
+		Type: linebot.FlexContainerTypeBubble,
+		Body: &linebot.BoxComponent{
+			Type:     linebot.FlexComponentTypeBox,
+			Layout:   linebot.FlexBoxLayoutTypeVertical,
+			Contents: elements,
+		},
+		Footer: &linebot.BoxComponent{
+			Type:   linebot.FlexComponentTypeBox,
+			Layout: linebot.FlexBoxLayoutTypeVertical,
+			Contents: []linebot.FlexComponent{
+				&linebot.SpacerComponent{
+					Type: linebot.FlexComponentTypeSeparator,
+					Size: linebot.FlexSpacerSizeTypeSm,
+				},
+			},
+		},
+	}
+	altText := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "ReservationCancelled",
+			Other: "Your reservation cancelled.",
+		},
+	})
+	return linebot.NewFlexMessage(altText, contents)
+}
+
 // HelpMessageFlex push Flex message for language options
 func (app *HailingApp) HelpMessageFlex(localizer *i18n.Localizer) linebot.SendingMessage {
 	title := localizer.MustLocalize(&i18n.LocalizeConfig{

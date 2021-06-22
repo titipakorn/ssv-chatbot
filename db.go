@@ -336,8 +336,24 @@ func (app *HailingApp) CancelReservation(rec *ReservationRecord) (string, error)
 		RETURNING id
 		`, rec.TripID, note, now).Scan(&tripID)
 	if err != nil {
-		log.Printf("[save2psql-cancel] %v", err)
+		log.Printf("[save2psql-cancel] [1] %v", err)
 		return "failed", err
 	}
 	return "success", nil
+}
+
+func (app *HailingApp) UpdateCancellationReason(tripID string, reason string) (string, error) {
+	note := fmt.Sprintf("User cancelled via line-bot\nreason: %s", reason)
+	// update postgresql record
+	err := app.pdb.QueryRow(`
+		UPDATE "trip" SET ("note") = ($2)
+		WHERE id=$1
+		RETURNING id
+		`, tripID, note).Scan(&tripID)
+	if err != nil {
+		log.Printf("[save2psql-cancel] [2] %v", err)
+		return "failed", err
+	}
+	return "success", nil
+
 }
