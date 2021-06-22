@@ -10,9 +10,33 @@ other = "現在地を教えてください！"
 hash = "sha1-77dfd2135f4db726c47299bb55be26f7f4525a46"
 other = "キャンセル"
 
+[CancellationAnswerNoLongerNeed]
+hash = "sha1-d8dbb17c96c3f71dd320836c73502fb93bb0ded8"
+other = "移動の予定が無くなった"
+
+[CancellationAnswerTakeAnotherMode]
+hash = "sha1-70bd0c2bd637d9cb1263e8f801679d7115a3abc0"
+other = "他の乗り物に変更した"
+
+[CancellationAnswerWaitTooLong]
+hash = "sha1-6c80ed0636582dbdc6e9a4f339517ef00af33140"
+other = "待ち時間が長すぎた"
+
+[CancellationAnswerWalk]
+hash = "sha1-1d4f99e0f74f807e65f82ff788265567fa63934b"
+other = "徒歩に変更した"
+
+[CancellationQuestionTitle]
+hash = "sha1-f234df7d549da7563c348a1f134bec0632242463"
+other = "キャンセルした理由を教えてください。"
+
 [ChangePickupTime]
 hash = "sha1-6fe1b87d93c074860ffd6252c5fa5e0601086ba3"
 other = "ピックアップ時間の変更"
+
+[CommandUnavailable]
+hash = "sha1-bfed234d466faaa491252c3b967ea72e8febeb62"
+other = "Command unavailable"
 
 [Confirm]
 hash = "sha1-04a212215ef9fbf686d280802eb81ee7a6e681cd"
@@ -143,8 +167,12 @@ hash = "sha1-ae79ea1e9c6391a9ed83a2e18a031b835feec0c9"
 other = "To"
 
 [TravelMeter]
+hash = "sha1-4547d1acef093c449f91e129981cb51ee3fd4b58"
+other = "{{.Meter}} m"
+
+[TravelMeterWithFreeFlow]
 hash = "sha1-2c5cda3d4aa29825e08b09ff7486205631906a14"
-other = "渋滞なしで{{.Meter}} m\n{{.FreeFlowMinute}} 分"
+other = "{{.Meter}} m\n{{.FreeFlowMinute}} min w/o traffic"
 
 [TravelMinute]
 hash = "sha1-e9330ebf3f13f0e07de45b50b0b6a072157db2b9"
