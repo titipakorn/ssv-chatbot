@@ -137,10 +137,10 @@ func (app *HailingApp) FindOrCreateUser(lineUserID string) (*User, error) {
 func (app *HailingApp) FindUserByID(ID uuid.UUID) (*User, error) {
 	u := User{}
 	err := app.pdb.QueryRow(`
-	SELECT line_user_id
+	SELECT id,line_user_id,username,profile_url,lang
 	FROM "user"
 	WHERE id=$1`,
-		ID).Scan(&u.LineUserID)
+		ID).Scan(&u.ID, &u.LineUserID, &u.Username, &u.ProfileURL, &u.Language)
 	if err != nil {
 		return nil, err
 	}

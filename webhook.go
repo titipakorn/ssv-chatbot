@@ -78,6 +78,7 @@ func (app *HailingApp) Webhook(w http.ResponseWriter, req *http.Request) {
 	// check what is updated: AcceptedAt, PickedUpAt, DroppedOffAt
 	oldData := t.Event.Data.Old
 	newData := t.Event.Data.New
+	log.Printf("[WEBHOOK] event ID#%d | userID#%s\n", newData.ID, newData.UserID)
 	user, _ := app.FindUserByID(newData.UserID)
 	localizer := i18n.NewLocalizer(app.i18nBundle, user.Language)
 	log.Printf("[WEBHOOK] user=%v, lang=%v\n", user.Username, user.Language)
