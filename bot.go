@@ -1387,14 +1387,6 @@ func (app *HailingApp) CancellationFeedback(localizer *i18n.Localizer, tripID in
 	postbackFormat := "/set:cancel-reason:%d:%s"
 
 	elements := []linebot.FlexComponent{
-		// TODO: delete this
-		// &linebot.TextComponent{
-		// 	Type:   linebot.FlexComponentTypeText,
-		// 	Text:   title,
-		// 	Weight: linebot.FlexTextWeightTypeBold,
-		// 	Size:   linebot.FlexTextSizeTypeLg,
-		// 	Wrap:   true,
-		// },
 		&linebot.TextComponent{
 			Type:   linebot.FlexComponentTypeText,
 			Text:   title,

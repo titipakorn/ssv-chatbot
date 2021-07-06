@@ -134,18 +134,11 @@ func (app *HailingApp) CancelHandler(replyToken string, lineUserID string) error
 		return app.replyText(replyToken, errMsg)
 	}
 	_, localizer, err := app.Localizer(lineUserID)
-	// TODO: [cancel] delete this
-	// cancelText := localizer.MustLocalize(&i18n.LocalizeConfig{
-	// 	DefaultMessage: &i18n.Message{
-	// 		ID:    "ReservationCancelled",
-	// 		Other: "Your reservation cancelled.",
-	// 	},
-	// })
 	if err != nil {
 		return app.replyText(replyToken, err.Error())
 	}
+	// NOTE: Should a cancellation before "confirm" be logged?
 	if tripID > 0 {
-		// TODO: [cancel] test this
 		msg := app.CancellationFeedback(localizer, tripID)
 		return app.replyMessage(replyToken, msg)
 		// return app.replyText(replyToken, cancelText)

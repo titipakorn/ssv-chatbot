@@ -346,7 +346,7 @@ func (app *HailingApp) UpdateCancellationReason(tripID string, reason string) (s
 	note := fmt.Sprintf("User cancelled via line-bot\nreason: %s", reason)
 	// update postgresql record
 	err := app.pdb.QueryRow(`
-		UPDATE "trip" SET ("note") = ($2)
+		UPDATE "trip" SET "note" = $2
 		WHERE id=$1
 		RETURNING id
 		`, tripID, note).Scan(&tripID)
