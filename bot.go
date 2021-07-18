@@ -1169,16 +1169,13 @@ func RecordInformationFlexArray(record *ReservationRecord, localizer *i18n.Local
 
 // RecordConfirmFlex to return information in form of FLEX
 func (record *ReservationRecord) RecordConfirmFlex(title string, localizer *i18n.Localizer, customButtons ...linebot.ButtonComponent) linebot.SendingMessage {
-	flexBtnLeft := 3
-	flexBtnRight := 6
-
-	pickupTimeChange := localizer.MustLocalize(&i18n.LocalizeConfig{
+	TextPickupTimeChange := localizer.MustLocalize(&i18n.LocalizeConfig{
 		DefaultMessage: &i18n.Message{
 			ID:    "ChangePickupTime",
 			Other: "Change pickup time",
 		},
 	})
-	cancel := localizer.MustLocalize(&i18n.LocalizeConfig{
+	TextCancel := localizer.MustLocalize(&i18n.LocalizeConfig{
 		DefaultMessage: &i18n.Message{
 			ID:    "Cancel",
 			Other: "Cancel",
@@ -1190,9 +1187,8 @@ func (record *ReservationRecord) RecordConfirmFlex(title string, localizer *i18n
 		successButton = linebot.ButtonComponent{
 			Height: linebot.FlexButtonHeightTypeMd,
 			Style:  linebot.FlexButtonStyleTypeSecondary,
-			Flex:   &flexBtnRight,
 			Action: linebot.NewDatetimePickerAction(
-				pickupTimeChange, "datetime-change", "datetime",
+				TextPickupTimeChange, "datetime-change", "datetime",
 				"", "", ""),
 		}
 	} else {
@@ -1209,6 +1205,8 @@ func (record *ReservationRecord) RecordConfirmFlex(title string, localizer *i18n
 	}
 	elements = append(elements, RecordInformationFlexArray(record, localizer)...)
 
+	// add
+
 	contents := &linebot.BubbleContainer{
 		Type: linebot.FlexContainerTypeBubble,
 		Body: &linebot.BoxComponent{
@@ -1220,24 +1218,17 @@ func (record *ReservationRecord) RecordConfirmFlex(title string, localizer *i18n
 			Type:   linebot.FlexComponentTypeBox,
 			Layout: linebot.FlexBoxLayoutTypeVertical,
 			Contents: []linebot.FlexComponent{
+				&successButton,
+				&linebot.ButtonComponent{
+					Height: linebot.FlexButtonHeightTypeSm,
+					Style:  linebot.FlexButtonStyleTypeLink,
+					Action: linebot.NewPostbackAction(TextCancel, "cancel", "", ""),
+				},
 				// &linebot.ButtonComponent{
 				// 	Height: linebot.FlexButtonHeightTypeMd,
 				// 	Style:  linebot.FlexButtonStyleTypeLink,
 				// 	Action: linebot.NewPostbackAction("Call driver", "call", "", ""),
 				// },
-				&linebot.BoxComponent{
-					Type:   linebot.FlexComponentTypeBox,
-					Layout: linebot.FlexBoxLayoutTypeHorizontal,
-					Contents: []linebot.FlexComponent{
-						&linebot.ButtonComponent{
-							Height: linebot.FlexButtonHeightTypeMd,
-							Style:  linebot.FlexButtonStyleTypeLink,
-							Flex:   &flexBtnLeft,
-							Action: linebot.NewPostbackAction(cancel, "cancel", "", ""),
-						},
-						&successButton,
-					},
-				},
 			},
 		},
 	}
