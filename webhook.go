@@ -83,7 +83,6 @@ func (app *HailingApp) Webhook(w http.ResponseWriter, req *http.Request) {
 	localizer := i18n.NewLocalizer(app.i18nBundle, user.Language)
 	log.Printf("[WEBHOOK] user=%v, lang=%v\n", user.Username, user.Language)
 	bkk, _ := time.LoadLocation("Asia/Bangkok")
-	// FIXME: localizer doesn't seem to work here somehow. It return English while lang is th.
 	if oldData.AcceptedAt == nil && newData.AcceptedAt != nil {
 		// notify
 		bkkReservedTime := newData.ReservedAt.In(bkk)
@@ -104,6 +103,9 @@ func (app *HailingApp) Webhook(w http.ResponseWriter, req *http.Request) {
 				},
 			})
 		}
+		// TODO: add car name & color here too
+		vehicle, err := app.GetActiveVehicleByDriverID(newData.DriverID)
+		// default message whether there is vehicle info or not
 		txt := localizer.MustLocalize(&i18n.LocalizeConfig{
 			DefaultMessage: &i18n.Message{
 				ID:    "DriverAcceptedJob",
@@ -113,8 +115,23 @@ func (app *HailingApp) Webhook(w http.ResponseWriter, req *http.Request) {
 				"LocalTime": hhmm,
 			},
 		})
-		msg := linebot.NewTextMessage(txt)
-		app.PushNotification(user.LineUserID, msg)
+		msgs := []linebot.SendingMessage{
+			linebot.NewTextMessage(txt),
+		}
+		if err == nil {
+			txt2 := localizer.MustLocalize(&i18n.LocalizeConfig{
+				DefaultMessage: &i18n.Message{
+					ID:    "VehicleWillPickYouUp",
+					Other: "{{VehicleName}} by driver {{ DriverName }}, will pick you up.",
+				},
+				TemplateData: map[string]string{
+					"VehicleName": vehicle.Name,
+					"DriverName": vehicle.DriverName,
+				},
+			})
+			msgs = append(msgs, linebot.NewTextMessage(txt2))
+		}
+		app.PushNotification(user.LineUserID, msgs...)
 
 	} else if oldData.PickedUpAt == nil && newData.PickedUpAt != nil {
 		// Do not need to do anything

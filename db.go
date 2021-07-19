@@ -56,6 +56,27 @@ type Location struct {
 	Name  string `json:"name"`
 }
 
+type Vehicle struct {
+	ID int `json:"id"`
+	Name string `json:"name"`
+	DriverName string `json:"driver_name"`
+}
+
+func (app *HailingApp) GetActiveVehicleByDriverID(ID uuid.UUID) (*Vehicle, error) {
+	result := Vehicle{}
+	err := app.pdb.QueryRow(`SELECT v.id, v.name, u.username
+		FROM working_shift ws
+		LEFT JOIN vehicle v on ws.vehicle_id = v.id
+		LEFT JOIN user u on ws.user_id = u.id
+		WHERE ws.user_id = $1
+		AND ws.end is NULL;`, ID).Scan(&result.ID, &result.Name, &result.DriverName)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("[GetActiveVehicleByDriverID] vehicle ID: %v -- %v", ID, result)
+	return &result, nil
+}
+
 // GetLocationByID returns a location in Location struct
 func (app *HailingApp) GetLocationByID(ID int) (*Location, error) {
 	result := Location{}
