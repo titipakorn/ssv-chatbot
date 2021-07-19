@@ -182,6 +182,10 @@ other = "{{.Meter}} m\n{{.FreeFlowMinute}} min w/o traffic"
 hash = "sha1-e9330ebf3f13f0e07de45b50b0b6a072157db2b9"
 other = "{{.Min}} 分"
 
+[VehicleWillPickYouUp]
+hash = "sha1-fdd228625299ba2f606c575efc819f023118a409"
+other = "{{ DriverName }}があなたを{{VehicleName}}で迎えにきます。"
+
 [WalkInstead]
 hash = "sha1-aa0b91d9af024fa851a919365054a37dd556ed6d"
 other = "代わりに歩きます。"
