@@ -1374,6 +1374,12 @@ func (app *HailingApp) CancellationFeedback(localizer *i18n.Localizer, tripID in
 			Other: "Decide to walk instead",
 		},
 	})
+	ans5 := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "InputByMistake",
+			Other: "Input by mistake",
+		},
+	})
 
 	postbackFormat := "/set:cancel-reason:%d:%s"
 
@@ -1412,6 +1418,13 @@ func (app *HailingApp) CancellationFeedback(localizer *i18n.Localizer, tripID in
 			Action: linebot.NewPostbackAction(
 				ans4,
 				fmt.Sprintf(postbackFormat, tripID, "walk"), "", ""),
+		},
+		&linebot.ButtonComponent{
+			Height: linebot.FlexButtonHeightTypeMd,
+			Style:  linebot.FlexButtonStyleTypeLink,
+			Action: linebot.NewPostbackAction(
+				ans5,
+				fmt.Sprintf(postbackFormat, tripID, "mistake"), "", ""),
 		},
 	}
 

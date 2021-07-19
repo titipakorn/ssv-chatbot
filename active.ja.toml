@@ -82,6 +82,10 @@ other = "何人で乗りますか？"
 hash = "sha1-1b9afe7ecce7e97799fa26f9fbe507635d86d39d"
 other = "{{.Min}} 以内"
 
+[InputByMistake]
+hash = "sha1-1ac575d79dfb1e082ff3be03cc7ec8cb5dc8603a"
+other = "入力間違い"
+
 [Japanese]
 hash = "sha1-568d976ca7ff3428d0c649cfc6f8129a91796b5a"
 other = "🇯🇵 日本語"
