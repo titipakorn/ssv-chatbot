@@ -106,6 +106,7 @@ func (app *HailingApp) Webhook(w http.ResponseWriter, req *http.Request) {
 		// TODO: add car name & color here too
 		vehicle, err := app.GetActiveVehicleByDriverID(newData.DriverID)
 		// default message whether there is vehicle info or not
+		log.Printf("[WEBHOOK] vehicle=%v, err=%v\n", vehicle, err)
 		txt := localizer.MustLocalize(&i18n.LocalizeConfig{
 			DefaultMessage: &i18n.Message{
 				ID:    "DriverAcceptedJob",
@@ -119,17 +120,19 @@ func (app *HailingApp) Webhook(w http.ResponseWriter, req *http.Request) {
 			linebot.NewTextMessage(txt),
 		}
 		if err == nil {
+			log.Printf("[WEBHOOK] vehicle=%v, err=%v\n", vehicle, err)
 			txt2 := localizer.MustLocalize(&i18n.LocalizeConfig{
 				DefaultMessage: &i18n.Message{
 					ID:    "VehicleWillPickYouUp",
-					Other: "{{VehicleName}} by driver {{ DriverName }}, will pick you up.",
+					Other: "{{VehicleName}} by driver {{DriverName}}, will pick you up.",
 				},
 				TemplateData: map[string]string{
 					"VehicleName": vehicle.Name,
 					"DriverName": vehicle.DriverName,
 				},
 			})
-			msgs = append(msgs, linebot.NewTextMessage(txt2))
+			txt3 := fmt.Sprintf("%s \n%s", txt, txt2)
+			msgs[0] = linebot.NewTextMessage(txt3)
 		}
 		app.PushNotification(user.LineUserID, msgs...)
 

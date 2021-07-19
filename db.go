@@ -67,7 +67,7 @@ func (app *HailingApp) GetActiveVehicleByDriverID(ID uuid.UUID) (*Vehicle, error
 	err := app.pdb.QueryRow(`SELECT v.id, v.name, u.username
 		FROM working_shift ws
 		LEFT JOIN vehicle v on ws.vehicle_id = v.id
-		LEFT JOIN user u on ws.user_id = u.id
+		LEFT JOIN public.user u on ws.user_id = u.id
 		WHERE ws.user_id = $1
 		AND ws.end is NULL;`, ID).Scan(&result.ID, &result.Name, &result.DriverName)
 	if err != nil {
