@@ -128,7 +128,7 @@ func TestInitReserve(t *testing.T) {
 		t.Error("Cleanup failed: ", err)
 	}
 
-	user, err := app.CreateUser(userID, userID, "dummy-profile")
+	user, _ := app.CreateUser(userID, userID, "dummy-profile")
 	rec, err := app.InitReservation(*user)
 	if err != nil {
 		t.Error("App reservation failed: ", err)

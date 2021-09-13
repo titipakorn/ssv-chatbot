@@ -20,6 +20,8 @@ type User struct {
 	ID         uuid.UUID
 	LineUserID string
 	Username   string
+	FirstName  string
+	LastName   string
 	ProfileURL string
 	Language   string
 }
@@ -57,8 +59,8 @@ type Location struct {
 }
 
 type Vehicle struct {
-	ID int `json:"id"`
-	Name string `json:"name"`
+	ID         int    `json:"id"`
+	Name       string `json:"name"`
 	DriverName string `json:"driver_name"`
 }
 
@@ -132,10 +134,13 @@ func (app *HailingApp) GetLocations(lang string, total int) ([]Location, error) 
 func (app *HailingApp) FindOrCreateUser(lineUserID string) (*User, error) {
 	row := User{}
 	err := app.pdb.QueryRow(`
-		SELECT id,line_user_id,username,profile_url,lang FROM "user"
+		SELECT
+			id, line_user_id, username, profile_url, lang,
+			first_name, last_name
+		FROM "user"
 		WHERE line_user_id=$1`,
 		lineUserID).Scan(
-		&row.ID, &row.LineUserID, &row.Username, &row.ProfileURL, &row.Language)
+		&row.ID, &row.LineUserID, &row.Username, &row.ProfileURL, &row.Language, &row.FirstName, &row.LastName)
 
 	if err != nil && strings.Contains(err.Error(), "no rows in result set") {
 		// we have to create a new record
@@ -158,10 +163,10 @@ func (app *HailingApp) FindOrCreateUser(lineUserID string) (*User, error) {
 func (app *HailingApp) FindUserByID(ID uuid.UUID) (*User, error) {
 	u := User{}
 	err := app.pdb.QueryRow(`
-	SELECT id,line_user_id,username,profile_url,lang
+	SELECT id,line_user_id,username,profile_url,lang,first_name,last_name
 	FROM "user"
 	WHERE id=$1`,
-		ID).Scan(&u.ID, &u.LineUserID, &u.Username, &u.ProfileURL, &u.Language)
+		ID).Scan(&u.ID, &u.LineUserID, &u.Username, &u.ProfileURL, &u.Language, &u.FirstName, &u.LastName)
 	if err != nil {
 		return nil, err
 	}
@@ -282,6 +287,21 @@ func (app *HailingApp) SaveTripFeedback(tripID int, rating int) (string, error) 
 		return "failed", err
 	}
 	return strconv.Itoa(resultTripID), nil
+}
+
+// UpdateUserInfo handles user info change
+func (app *HailingApp) UpdateUserInfo(userID uuid.UUID, updateQuery string) (string, error) {
+	var resultID uuid.UUID
+	query := fmt.Sprintf(`UPDATE "user" SET %s
+		WHERE id=$1
+		RETURNING id`, updateQuery)
+
+	err := app.pdb.QueryRow(query, userID).Scan(&resultID)
+	if err != nil {
+		log.Printf("[save2psql-cancel] %v", err)
+		return "failed", err
+	}
+	return "ok", nil
 }
 
 // SetLanguage save preferred lanague to "user" table

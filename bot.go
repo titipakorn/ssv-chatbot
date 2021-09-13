@@ -203,6 +203,13 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 	var err error
 	msgs := []string{"", ""}
 
+	// First thig first -- user validation
+	user, _ := app.FindOrCreateUser(lineUserID)
+	if user.FirstName == "" || user.LastName == "" {
+		// ask user to fill up this first
+		return app.CompleteRegistration(replyToken, user, reply)
+	}
+
 	if strings.Contains(reply.Text, "[LIFF]") {
 		return app.LIFFHandler(replyToken, lineUserID, reply)
 	}
