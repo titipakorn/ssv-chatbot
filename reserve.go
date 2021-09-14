@@ -114,8 +114,8 @@ func (record *ReservationRecord) WhatsNext() string {
 }
 
 // Cancel : to cancel this reservation
-func (app *HailingApp) Cancel(userID string) (int, error) {
-	rec, err := app.FindRecord(userID)
+func (app *HailingApp) Cancel(lineUserID string) (int, error) {
+	rec, err := app.FindRecord(lineUserID)
 	if err != nil {
 		// if record not found, it's good
 		return 0, nil
@@ -128,7 +128,7 @@ func (app *HailingApp) Cancel(userID string) (int, error) {
 		}
 	}
 	// if there is no tripID yet, then continue with cancel process
-	_, err = app.rdb.Del(userID).Result()
+	_, err = app.rdb.Del(lineUserID).Result()
 	if err != nil {
 		return -1, err
 	}

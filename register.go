@@ -26,7 +26,7 @@ func (app *HailingApp) CompleteRegistration(replyToken string, user *User, reply
 		return err
 	}
 	log.Printf("[register] rec#1: %v / %v", rec, reply.Text)
-	if rec.Title != "register" || reply.Text == "" || (user.FirstName == "" && user.LastName == "") {
+	if rec.Title != "register" && reply.Text == "" {
 		log.Printf("[register] rec step 1: %v", rec)
 		return app.initRegistrationProcess(replyToken, user, localizer)
 	}
@@ -56,6 +56,7 @@ func (app *HailingApp) CompleteRegistration(replyToken string, user *User, reply
 			return err
 		}
 		// Done with registration then asking to init
+		app.Cancel(user.LineUserID)
 		return app.registratonDone(replyToken, localizer)
 	}
 	return nil
