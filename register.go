@@ -21,10 +21,17 @@ func (app *HailingApp) CompleteRegistration(replyToken string, user *User, reply
 		return err
 	}
 	rec, _ := app.FindRecord(user.LineUserID)
+	if err != nil {
+		log.Printf("[register] rec err: %v", err)
+		return err
+	}
+	log.Printf("[register] rec#1: %v / %v", rec, reply.Text)
 	if rec.Title != "register" || reply.Text == "" || (user.FirstName == "" && user.LastName == "") {
+		log.Printf("[register] rec step 1: %v", rec)
 		return app.initRegistrationProcess(replyToken, user, localizer)
 	}
 	if rec.Waiting == "first_name" {
+		log.Printf("[register] rec step 2: %v", reply.Text)
 		rec.State = "first_name"
 		rec.Waiting = "last_name"
 		app.SaveRecordToRedis(rec)
@@ -42,6 +49,7 @@ func (app *HailingApp) CompleteRegistration(replyToken string, user *User, reply
 		return app.replyText(replyToken, msg)
 	}
 	if rec.Waiting == "last_name" {
+		log.Printf("[register] rec step 3: %v", reply.Text)
 		q := fmt.Sprintf(`"last_name" = '%s'`, reply.Text)
 		_, err := app.UpdateUserInfo(user.ID, q)
 		if err != nil {
@@ -105,6 +113,7 @@ func (app *HailingApp) initRegistrationProcess(replyToken string, user *User, lo
 		TripID:     -1,
 		Title:      "register",
 	}
+	log.Printf("[register] init rec: %v", rec)
 	err := app.SaveRecordToRedis(&rec)
 	if err != nil {
 		log.Printf("SAVE to Redis FAILED: %v", err)
