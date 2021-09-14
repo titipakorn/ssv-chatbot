@@ -25,7 +25,7 @@ func (app *HailingApp) CompleteRegistration(replyToken string, user *User, reply
 		rec = &ReservationRecord{}
 	}
 	log.Printf("[register] rec#1: %v / %v", rec, reply.Text)
-	if rec.Title != "register" && reply.Text == "" {
+	if rec.Title != "register" || reply.Text == "" {
 		log.Printf("[register] rec step 1: %v", rec)
 		return app.initRegistrationProcess(replyToken, user, localizer)
 	}
