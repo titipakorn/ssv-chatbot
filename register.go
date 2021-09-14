@@ -56,6 +56,23 @@ func (app *HailingApp) CompleteRegistration(replyToken string, user *User, reply
 		}
 		// Done with registration then asking to init
 		app.Cancel(user.LineUserID)
+		msg := localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{
+				ID:    "WhatIsYourEmail",
+				Other: "What's email?",
+			},
+		})
+		return app.replyText(replyToken, msg)
+	}
+	if rec.Waiting == "email" {
+		log.Printf("[register] rec step 4: %v", reply.Text)
+		q := fmt.Sprintf(`"email" = '%s'`, reply.Text)
+		_, err := app.UpdateUserInfo(user.ID, q)
+		if err != nil {
+			return err
+		}
+		// Done with registration then asking to init
+		app.Cancel(user.LineUserID)
 		return app.registratonDone(replyToken, localizer)
 	}
 	return nil
@@ -98,18 +115,39 @@ func (app *HailingApp) initRegistrationProcess(replyToken string, user *User, lo
 			Other: "Hello there, we still need some information to serve you better.",
 		},
 	})
+	// check which is the step we required
+	// we required: first_name & last_name & email
+	nextStep := "first_name"
 	msg2 := localizer.MustLocalize(&i18n.LocalizeConfig{
 		DefaultMessage: &i18n.Message{
 			ID:    "WhatIsYourFirstName",
 			Other: "What's your first name?",
 		},
 	})
+	if user.FirstName != "" && user.LastName != "" {
+		nextStep = "email"
+		msg2 = localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{
+				ID:    "WhatIsYourEmail",
+				Other: "What's email?",
+			},
+		})
+	} else if user.FirstName != "" {
+		nextStep = "last_name"
+		msg2 = localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{
+				ID:    "WhatIsYourLastName",
+				Other: "What's your last name?",
+			},
+		})
+	}
+
 	replies := []string{msg1, msg2}
 	rec := ReservationRecord{
 		UserID:     user.ID,
 		LineUserID: user.LineUserID,
 		State:      "init",
-		Waiting:    "first_name",
+		Waiting:    nextStep,
 		TripID:     -1,
 		Title:      "register",
 	}

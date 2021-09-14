@@ -205,7 +205,7 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 
 	// First thig first -- user validation
 	user, _ := app.FindOrCreateUser(lineUserID)
-	if user.FirstName == "" || user.LastName == "" {
+	if user.FirstName == "" || user.LastName == "" || user.Email == "" {
 		// ask user to fill up this first
 		return app.CompleteRegistration(replyToken, user, reply)
 	}

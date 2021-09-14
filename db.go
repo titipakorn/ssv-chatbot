@@ -22,6 +22,7 @@ type User struct {
 	Username   string
 	FirstName  string
 	LastName   string
+	Email      string
 	ProfileURL string
 	Language   string
 }
@@ -136,11 +137,11 @@ func (app *HailingApp) FindOrCreateUser(lineUserID string) (*User, error) {
 	err := app.pdb.QueryRow(`
 		SELECT
 			id, line_user_id, username, profile_url, lang,
-			first_name, last_name
+			first_name, last_name, email
 		FROM "user"
 		WHERE line_user_id=$1`,
 		lineUserID).Scan(
-		&row.ID, &row.LineUserID, &row.Username, &row.ProfileURL, &row.Language, &row.FirstName, &row.LastName)
+		&row.ID, &row.LineUserID, &row.Username, &row.ProfileURL, &row.Language, &row.FirstName, &row.LastName, &row.Email)
 
 	if err != nil && strings.Contains(err.Error(), "no rows in result set") {
 		// we have to create a new record
@@ -163,10 +164,10 @@ func (app *HailingApp) FindOrCreateUser(lineUserID string) (*User, error) {
 func (app *HailingApp) FindUserByID(ID uuid.UUID) (*User, error) {
 	u := User{}
 	err := app.pdb.QueryRow(`
-	SELECT id,line_user_id,username,profile_url,lang,first_name,last_name
+	SELECT id,line_user_id,username,profile_url,lang,first_name,last_name,email
 	FROM "user"
 	WHERE id=$1`,
-		ID).Scan(&u.ID, &u.LineUserID, &u.Username, &u.ProfileURL, &u.Language, &u.FirstName, &u.LastName)
+		ID).Scan(&u.ID, &u.LineUserID, &u.Username, &u.ProfileURL, &u.Language, &u.FirstName, &u.LastName, &u.Email)
 	if err != nil {
 		return nil, err
 	}
