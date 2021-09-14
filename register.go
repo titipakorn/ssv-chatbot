@@ -21,9 +21,8 @@ func (app *HailingApp) CompleteRegistration(replyToken string, user *User, reply
 		return err
 	}
 	rec, _ := app.FindRecord(user.LineUserID)
-	if err != nil {
-		log.Printf("[register] rec err: %v", err)
-		return err
+	if rec == nil {
+		rec = &ReservationRecord{}
 	}
 	log.Printf("[register] rec#1: %v / %v", rec, reply.Text)
 	if rec.Title != "register" && reply.Text == "" {
