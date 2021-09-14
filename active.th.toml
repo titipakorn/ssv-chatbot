@@ -6,6 +6,10 @@ other = "ตอนนี้เลย"
 hash = "sha1-a5fe081642f02cb713106d5ab30f2f0a30d73bc9"
 other = "หรือจะส่งตำแหน่งเลยก็ได้นะ"
 
+[AskToCompleteRegistration]
+hash = "sha1-181c6d4e88ce9a547b5ce02d57a64075fb63bae3"
+other = "ก่อนที่จะทำอะไร เราต้องการข้อมูลของท่านอีกหน่อยเพื่อให้บริการได้ดียิ่งขึ้น"
+
 [Cancel]
 hash = "sha1-77dfd2135f4db726c47299bb55be26f7f4525a46"
 other = "ยกเลิก"
@@ -126,6 +130,10 @@ other = "สถานที่นัด"
 hash = "sha1-adc67a6a7f319e02f4af6b15a052073a3a0f80b5"
 other = "สถานที่นัด?"
 
+[RegistrationComplete]
+hash = "sha1-9801e16715795e4a1a465a980416032e768bc6d5"
+other = "บัญชีของคุณพร้อมแล้ว"
+
 [ReservationCancelled]
 hash = "sha1-4d11bc874970e3dca3986247923dd720bb84ee12"
 other = "ยกเลิกการจอง"
@@ -193,6 +201,18 @@ other = "เดินดีกว่า"
 [WelcomeAboard]
 hash = "sha1-389fa6a2c9a3cb8e81430d618d16526a649378de"
 other = "ยินดีต้อนรับครับ"
+
+[WhatIsYourEmail]
+hash = "sha1-eb7a3271d0718b38536f5e4783666c9482cd0a42"
+other = "อีเมล์ของคุณ"
+
+[WhatIsYourFirstName]
+hash = "sha1-484b8cfb5482beb3bda116e0627aaca1e693cc22"
+other = "ชื่อของคุณ?"
+
+[WhatIsYourLastName]
+hash = "sha1-0e4224694477f72fca0d03a607a47e02d272d5a4"
+other = "นามสกุล?"
 
 [When]
 hash = "sha1-b2028cfcc78f7fd44821aacab16481a32f1dfc70"

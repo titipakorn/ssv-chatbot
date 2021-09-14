@@ -6,6 +6,10 @@ other = "今すぐ"
 hash = "sha1-a5fe081642f02cb713106d5ab30f2f0a30d73bc9"
 other = "現在地を教えてください！"
 
+[AskToCompleteRegistration]
+hash = "sha1-181c6d4e88ce9a547b5ce02d57a64075fb63bae3"
+other = "より良いサービスを提供するために、まだいくつかの情報が必要です。 "
+
 [Cancel]
 hash = "sha1-77dfd2135f4db726c47299bb55be26f7f4525a46"
 other = "キャンセル"
@@ -126,6 +130,10 @@ other = "ここで乗車！"
 hash = "sha1-adc67a6a7f319e02f4af6b15a052073a3a0f80b5"
 other = "乗車場所は？"
 
+[RegistrationComplete]
+hash = "sha1-9801e16715795e4a1a465a980416032e768bc6d5"
+other = "アカウントの準備ができました"
+
 [ReservationCancelled]
 hash = "sha1-4d11bc874970e3dca3986247923dd720bb84ee12"
 other = "あなたの予約がキャンセルされました。"
@@ -193,6 +201,18 @@ other = "代わりに歩きます。"
 [WelcomeAboard]
 hash = "sha1-389fa6a2c9a3cb8e81430d618d16526a649378de"
 other = "ようこそ！"
+
+[WhatIsYourEmail]
+hash = "sha1-eb7a3271d0718b38536f5e4783666c9482cd0a42"
+other = "あなたのメールは何ですか？"
+
+[WhatIsYourFirstName]
+hash = "sha1-484b8cfb5482beb3bda116e0627aaca1e693cc22"
+other = "あなたの名は何ですか？"
+
+[WhatIsYourLastName]
+hash = "sha1-0e4224694477f72fca0d03a607a47e02d272d5a4"
+other = "あなたの名前は何ですか？"
 
 [When]
 hash = "sha1-b2028cfcc78f7fd44821aacab16481a32f1dfc70"
