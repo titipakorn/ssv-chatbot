@@ -21,6 +21,7 @@ import (
 
 // ReservationRecord : whole process record
 type ReservationRecord struct {
+	Title           string     `json:"title"`
 	State           string     `json:"state"` // i.e. init, to, from, when, final -> done
 	Waiting         string     `json:"waiting"`
 	From            string     `json:"from"`
@@ -259,6 +260,7 @@ func (app *HailingApp) InitReservation(user User) (*ReservationRecord, error) {
 		State:      "init",
 		Waiting:    "to",
 		TripID:     -1,
+		Title:      "reserve",
 	}
 
 	err := app.SaveRecordToRedis(&newRecord)

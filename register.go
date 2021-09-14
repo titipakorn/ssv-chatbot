@@ -20,10 +20,10 @@ func (app *HailingApp) CompleteRegistration(replyToken string, user *User, reply
 	if err != nil {
 		return err
 	}
-	if reply.Text == "" || (user.FirstName == "" && user.LastName == "") {
+	rec, _ := app.FindRecord(user.LineUserID)
+	if rec.Title != "register" || reply.Text == "" || (user.FirstName == "" && user.LastName == "") {
 		return app.initRegistrationProcess(replyToken, user, localizer)
 	}
-	rec, _ := app.FindRecord(user.LineUserID)
 	if rec.Waiting == "first_name" {
 		rec.State = "first_name"
 		rec.Waiting = "last_name"
@@ -100,9 +100,10 @@ func (app *HailingApp) initRegistrationProcess(replyToken string, user *User, lo
 	rec := ReservationRecord{
 		UserID:     user.ID,
 		LineUserID: user.LineUserID,
-		State:      "register",
+		State:      "init",
 		Waiting:    "first_name",
 		TripID:     -1,
+		Title:      "register",
 	}
 	err := app.SaveRecordToRedis(&rec)
 	if err != nil {
