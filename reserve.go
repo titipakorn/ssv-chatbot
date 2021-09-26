@@ -394,10 +394,6 @@ func (app *HailingApp) QuestionToAsk(record *ReservationRecord, localizer *i18n.
 				Label: "3",
 				Text:  "3",
 			},
-			{
-				Label: "4",
-				Text:  "4",
-			},
 		}
 		return Question{
 			Text: localizer.MustLocalize(&i18n.LocalizeConfig{
