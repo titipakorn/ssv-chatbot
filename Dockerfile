@@ -11,7 +11,9 @@ RUN mkdir /app
 EXPOSE 8000
 WORKDIR /app
 
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /server /app/
 COPY *.toml /app/
+
 
 CMD [ "/app/server" ]

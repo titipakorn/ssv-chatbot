@@ -229,3 +229,9 @@ other = "どちらかお好みですか？"
 [Yes]
 hash = "sha1-5397e0583f14f6c88de06b1ef28f460a1fb5b0ae"
 other = "はい"
+
+[WorkTable]
+other = "今日の勤務時間は{{.START_WORK_TIME}}から{{.END_WORK_TIME}}までで、昼休みは{{.START_BREAK_TIME}}から{{.END_BREAK_TIME}}までです。"
+
+[JobID]
+other = "ジョブID"

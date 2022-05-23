@@ -65,6 +65,13 @@ type Vehicle struct {
 	DriverName string `json:"driver_name"`
 }
 
+type WorkTable struct {
+	START_WORK_TIME     string `json:"start_work_time"`
+	END_WORK_TIME       string `json:"end_work_time"`
+	START_BREAK_TIME 	string `json:"start_break_time"`
+	END_BREAK_TIME 		string `json:"end_break_time"`
+}
+
 func (app *HailingApp) GetActiveVehicleByDriverID(ID uuid.UUID) (*Vehicle, error) {
 	result := Vehicle{}
 	err := app.pdb.QueryRow(`SELECT v.id, v.name, u.username
@@ -77,6 +84,17 @@ func (app *HailingApp) GetActiveVehicleByDriverID(ID uuid.UUID) (*Vehicle, error
 		return nil, err
 	}
 	log.Printf("[GetActiveVehicleByDriverID] vehicle ID: %v -- %v", ID, result)
+	return &result, nil
+}
+
+func (app *HailingApp) GetWorkTable() (*WorkTable, error) {
+	result := WorkTable{}
+	err := app.pdb.QueryRow(`SELECT start_working_time, end_working_time,start_break_time,end_break_time
+		FROM work_table order by created_dt desc limit 1`).Scan(&result.START_WORK_TIME, &result.END_WORK_TIME, &result.START_BREAK_TIME, &result.END_BREAK_TIME)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("[GET WORKTABLE] %v", result)
 	return &result, nil
 }
 
@@ -110,7 +128,7 @@ func (app *HailingApp) GetLocations(lang string, total int) ([]Location, error) 
 		fieldName = "name_th"
 	}
 	q := fmt.Sprintf(`SELECT id, %s, ST_AsGeoJSON(place)
-		FROM location
+		FROM location WHERE active=true
 		ORDER BY popularity DESC
 		LIMIT $1`, fieldName)
 	rows, err := app.pdb.Query(q, total)
@@ -359,10 +377,12 @@ func (app *HailingApp) CancelReservation(rec *ReservationRecord) (string, error)
 	if err != nil {
 		return "failed", err
 	}
-	blankUUID := uuid.UUID{}
-	if trip.DriverID != blankUUID {
-		return "failed", errors.New("Contact assigned driver for cancellation")
-	}
+	//OPEN FOR CANCELATION
+	// blankUUID := uuid.UUID{}
+	// if trip.DriverID != blankUUID {
+	// 	return "failed", errors.New("Contact assigned driver for cancellation")
+	// }
+	
 	fmt.Print("[PSQL-CANCEL] ", trip)
 	if trip.PickedUpAt != nil && trip.PickedUpAt.Format("2006-01-01") != "0001-01-01" {
 		// cancel isn't possible now

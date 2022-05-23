@@ -148,6 +148,16 @@ func (app *HailingApp) extractReplyFromPostback(event *linebot.Event) error {
 	return nil
 }
 
+func firstN(s string, n int) string {
+    i := 0
+    for j := range s {
+        if i == n {
+            return s[:j]
+        }
+        i++
+    }
+    return s
+}
 // extractReplyFromMessage will convert event.Message to Reply for the next process
 func (app *HailingApp) extractReplyFromMessage(event *linebot.Event) error {
 	reply := Reply{}
@@ -159,6 +169,11 @@ func (app *HailingApp) extractReplyFromMessage(event *linebot.Event) error {
 	case *linebot.LocationMessage:
 		loc := event.Message.(*linebot.LocationMessage)
 		reply.Coords = [2]float64{loc.Longitude, loc.Latitude}
+		if(loc.Title!=""){
+			reply.Text = fmt.Sprintf("%v",loc.Title)
+		}else{
+			reply.Text = fmt.Sprintf("%v",firstN(loc.Address,30))
+		}
 	case *linebot.StickerMessage:
 		sticker := event.Message.(*linebot.StickerMessage)
 		reply.Text = sticker.StickerID
@@ -515,6 +530,9 @@ func (app *HailingApp) replyBack(replyToken string, question Question, messages 
 		}
 	}
 	// ask question
+	if(question.ExtraText!=""){
+		sendingMsgs = append(sendingMsgs, linebot.NewTextMessage(question.ExtraText))
+	}
 	sendingMsgs = append(sendingMsgs, linebot.NewTextMessage(question.Text).WithQuickReplies(replyItems))
 
 	if _, err := app.bot.ReplyMessage(
@@ -1082,6 +1100,13 @@ func RecordInformationFlexArray(record *ReservationRecord, localizer *i18n.Local
 	bkk, _ := time.LoadLocation("Asia/Bangkok")
 	bkkReservedTime := record.ReservedAt.In(bkk)
 
+	jobid := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "JobID",
+			Other: "Job ID",
+		},
+	})
+
 	pickup := localizer.MustLocalize(&i18n.LocalizeConfig{
 		DefaultMessage: &i18n.Message{
 			ID:    "Pickup",
@@ -1102,6 +1127,29 @@ func RecordInformationFlexArray(record *ReservationRecord, localizer *i18n.Local
 	})
 
 	flexComponents := []linebot.FlexComponent{
+		&linebot.BoxComponent{
+			Type:    linebot.FlexComponentTypeBox,
+			Layout:  linebot.FlexBoxLayoutTypeBaseline,
+			Spacing: linebot.FlexComponentSpacingTypeXs,
+			Margin:  linebot.FlexComponentMarginTypeXl,
+			Contents: []linebot.FlexComponent{
+				&linebot.TextComponent{
+					Type:   linebot.FlexComponentTypeText,
+					Text:   jobid,
+					Weight: linebot.FlexTextWeightTypeRegular,
+					Flex:   &flexLabel,
+					Size:   linebot.FlexTextSizeTypeSm,
+				},
+				&linebot.TextComponent{
+					Type:   linebot.FlexComponentTypeText,
+					Text:   fmt.Sprintf("%v", record.TripID),
+					Weight: linebot.FlexTextWeightTypeRegular,
+					Flex:   &flexDesc,
+					Size:   linebot.FlexTextSizeTypeSm,
+					Wrap:   true,
+				},
+			},
+		},
 		&linebot.BoxComponent{
 			Type:    linebot.FlexComponentTypeBox,
 			Layout:  linebot.FlexBoxLayoutTypeBaseline,
@@ -1247,7 +1295,7 @@ func (app *HailingApp) PushNotification(lineUserID string, messages ...linebot.S
 	_, err := app.bot.PushMessage(lineUserID, messages...).Do()
 	if err != nil {
 		// Do something when some bad happened
-		log.Printf("[PushNoti] %v", lineUserID)
+		log.Printf("[PushNoti] ERROR %v", err)
 	}
 	return nil
 }

@@ -60,6 +60,7 @@ type QuickReplyButton struct {
 
 // Question contains what's the message and extra options for Chatbot
 type Question struct {
+	ExtraText	  string `json:"extra_text"`
 	Text          string `json:"text"`
 	Buttons       []QuickReplyButton
 	DatetimeInput bool
@@ -316,7 +317,32 @@ func (app *HailingApp) QuestionToAsk(record *ReservationRecord, localizer *i18n.
 	// step: init -> to -> from -> when -> final -> done
 	switch strings.ToLower(record.Waiting) {
 	case "to":
+		worktable, err := app.GetWorkTable()
 		buttons := app.QuickReplyLocations(record)
+		if err == nil {
+		return Question{
+			Text: localizer.MustLocalize(&i18n.LocalizeConfig{
+				DefaultMessage: &i18n.Message{
+					ID:    "WhereTo",
+					Other: "Where to?",
+				},
+			}),
+			ExtraText: localizer.MustLocalize(&i18n.LocalizeConfig{
+				DefaultMessage: &i18n.Message{
+					ID:    "WorkTable",
+					Other: "Today's working hour is from {{.START_WORK_TIME}} to {{.END_WORK_TIME}}, a lunch break from {{.START_BREAK_TIME}} to {{.END_BREAK_TIME}}.",
+				},
+				TemplateData: map[string]string{
+					"START_WORK_TIME": worktable.START_WORK_TIME,
+					"END_WORK_TIME": worktable.END_WORK_TIME,
+					"START_BREAK_TIME": worktable.START_BREAK_TIME,
+					"END_BREAK_TIME": worktable.END_BREAK_TIME,
+				},
+			}),
+			Buttons:       buttons,
+			LocationInput: true,
+		}
+	}else{
 		return Question{
 			Text: localizer.MustLocalize(&i18n.LocalizeConfig{
 				DefaultMessage: &i18n.Message{
@@ -327,6 +353,7 @@ func (app *HailingApp) QuestionToAsk(record *ReservationRecord, localizer *i18n.
 			Buttons:       buttons,
 			LocationInput: true,
 		}
+	}
 	case "from":
 		buttons := app.QuickReplyLocations(record)
 		return Question{
@@ -503,10 +530,10 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 			return rec, err
 		}
 		if reply.Coords != [2]float64{0, 0} {
-			rec.From = "custom"
 			rec.FromCoords = reply.Coords
-			// if it's not from LocationInput
-			if strings.Index(reply.Text, "location:") == -1 {
+			if(reply.Text==""){
+				rec.From = "custom"
+			}else{
 				rec.From = reply.Text
 			}
 		} else {
@@ -535,10 +562,11 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 			return rec, err
 		}
 		if reply.Coords != [2]float64{0, 0} {
-			rec.To = "custom"
 			rec.ToCoords = reply.Coords
 			// if it's not from LocationInput
-			if strings.Index(reply.Text, "location:") == -1 {
+			if(reply.Text==""){
+				rec.To = "custom"
+			}else{
 				rec.To = reply.Text
 			}
 		} else {
