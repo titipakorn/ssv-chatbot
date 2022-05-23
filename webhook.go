@@ -148,12 +148,14 @@ func (app *HailingApp) Webhook(w http.ResponseWriter, req *http.Request) {
 		app.PushNotification(user.LineUserID, msg)
 
 	} else if oldData.DroppedOffAt == nil && newData.DroppedOffAt != nil {
+		var record *ReservationRecord
+		var questions []Questionaire
 		// send feedback form
 		// msg := linebot.NewTextMessage("Ride is done, any feedback?")
 		// TODO: should get tripID and pass along too
-		tripID := newData.ID
+		// tripID := newData.ID
 		// msg := app.StarFeedbackFlex(tripID, localizer)
-		record, err = app.FindRecord(lineUserID)
+		record, err = app.FindRecord(user.LineUserID)
 		if err != nil {
 			log.Println("[WEBHOOK] Error FindRecord: ", err)
 			errMessage := Response{Message: fmt.Sprintf("No Record")}
@@ -169,7 +171,7 @@ func (app *HailingApp) Webhook(w http.ResponseWriter, req *http.Request) {
 		record.QList = questions
 		record.QState = 0
 		// record.QState = questions[0].ID
-		err = app.SaveRecordToRedis(rec)
+		err = app.SaveRecordToRedis(record)
 		if err != nil {
 			log.Println("[WEBHOOK] Error SaveToRedis: ", err)
 			errMessage := Response{Message: fmt.Sprintf("No Record")}

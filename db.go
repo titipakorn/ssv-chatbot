@@ -325,7 +325,7 @@ func (app *HailingApp) SaveTripFeedback(tripID int, rating int) (string, error) 
 func (app *HailingApp) SaveTripQuestionaire(tripID int, questionID int, answer int) (string, error) {
 	var resultRecordID int
 	err := app.pdb.QueryRow(`
-	insert into "trip_answer"(trip_id,question_id,answer) values ($1,$2,$3)
+	insert into "trip_answers"(trip_id,question_id,answer) values ($1,$2,$3)
 	RETURNING id
 	`, tripID, questionID, answer).Scan(&resultRecordID)
 	if err != nil {
@@ -410,7 +410,7 @@ func (app *HailingApp) GetQuestions(lang string) ([]Questionaire, error) {
 		fieldName = "question_th"
 	}
 	q := fmt.Sprintf(`SELECT id, %s, type
-		FROM location WHERE active=true
+		FROM question_table WHERE active=true
 		ORDER BY "order" ASC`, fieldName)
 	rows, err := app.pdb.Query(q)
 	if err != nil {
@@ -419,7 +419,7 @@ func (app *HailingApp) GetQuestions(lang string) ([]Questionaire, error) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var one Question
+		var one Questionaire
 		err = rows.Scan(&one.ID, &one.Question, &one.Type)
 		if err != nil {
 			continue
@@ -453,7 +453,7 @@ func (app *HailingApp) GetQuestion(lang string, questionID int) (*Questionaire, 
 
 // GetAnswers returns questions record
 func (app *HailingApp) GetAnswers(lang string,questionID int) ([]Answer, error) {
-	answer := []Answer{}
+	results := []Answer{}
 	fieldName := "answer"
 	switch lang {
 	case "ja":
@@ -462,15 +462,15 @@ func (app *HailingApp) GetAnswers(lang string,questionID int) ([]Answer, error) 
 		fieldName = "answer_th"
 	}
 	q := fmt.Sprintf(`SELECT id, %s
-	FROM answer_table WHERE id=$1 order by id asc`, fieldName)
-	rows, err := app.pdb.Query(q)
+	FROM answer_table WHERE question_id=$1 order by id asc`, fieldName)
+	rows, err := app.pdb.Query(q, questionID)
 	if err != nil {
 		log.Printf("[GetAnswers] %v", err)
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var one Question
+		var one Answer
 		err = rows.Scan(&one.ID, &one.Answer)
 		if err != nil {
 			continue
@@ -496,6 +496,7 @@ func (app *HailingApp) CancelReservation(rec *ReservationRecord) (string, error)
 	fmt.Print("[PSQL-CANCEL] ", trip)
 	if trip.PickedUpAt != nil && trip.PickedUpAt.Format("2006-01-01") != "0001-01-01" {
 		// cancel isn't possible now
+		// app.Cleanup(rec.LineUserID)
 		return "failed", errors.New("Cancellation is not allowed at this point")
 	}
 	var tripID int
@@ -514,14 +515,15 @@ func (app *HailingApp) CancelReservation(rec *ReservationRecord) (string, error)
 	return "success", nil
 }
 
-func (app *HailingApp) UpdateCancellationReason(tripID string, reason string) (string, error) {
+func (app *HailingApp) UpdateCancellationReason(tripID string, reason string, cancelID string) (string, error) {
 	note := fmt.Sprintf("User cancelled via line-bot\nreason: %s", reason)
+	cID, _ := strconv.Atoi(cancelID)
 	// update postgresql record
 	err := app.pdb.QueryRow(`
-		UPDATE "trip" SET "note" = $2
+		UPDATE "trip" SET "note" = $2, cancel_feedback = $3
 		WHERE id=$1
 		RETURNING id
-		`, tripID, note).Scan(&tripID)
+		`, tripID, note, cID).Scan(&tripID)
 	if err != nil {
 		log.Printf("[save2psql-cancel] [2] %v", err)
 		return "failed", err

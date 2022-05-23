@@ -412,7 +412,7 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 
 	if record.State == "jobOver" {
 		// this need special care
-		return app.AskQuestionaire(record)
+		return app.AskQuestionaire(replyToken, record)
 	}
 
 	return app.replyQuestion(replyToken, localizer, record, msgs...)
@@ -718,54 +718,47 @@ func (app *HailingApp) travelOption(icon string, distance string, duration strin
 
 
 // QuestionFlex let user answer questionaires of the service
-func (app *HailingApp) QuestionFlex(question *Questionaire, tripID int, lang string) linebot.SendingMessage {
+func (app *HailingApp) QuestionFlex(question Questionaire, tripID int, lang string) linebot.SendingMessage {
 	// question, err := app.GetQuestion(lang, questionID)
 	// if err != nil {
 	// 	return nil
 	// }
 
-	answers, err := app.GetAnswers(lang, questionID)
-	if err != nil {
-		return nil
-	}
-
-	flexLabel := 3
-	flexDesc := 7
+	// flexLabel := 3
+	// flexDesc := 7
 	
-	elements := []linebot.FlexComponent{
-		&linebot.TextComponent{
-			Type:   linebot.FlexComponentTypeText,
-			Text:   question.Question,
-			Wrap:   true,
-			Weight: linebot.FlexTextWeightTypeBold,
-			Size:   linebot.FlexTextSizeTypeLg,
-		},
-	}
+	elements := []linebot.FlexComponent{&linebot.TextComponent{
+		Type:   linebot.FlexComponentTypeText,
+		Text:   question.Question,
+		Wrap: true,
+		Weight: linebot.FlexTextWeightTypeBold,
+		Size:   linebot.FlexTextSizeTypeLg,
+	},}
 	switch question.Type {
 		case "choice":
+			answers, err := app.GetAnswers(lang, question.ID)
+			if err != nil {
+				return nil
+			}
 			for i := 0; i < len(answers); i++ {
 				answer := answers[i]
-				elements = append(&linebot.ButtonComponent{
+				elements = append(elements,&linebot.ButtonComponent{
 					Height: linebot.FlexButtonHeightTypeSm,
 					Style:  linebot.FlexButtonStyleTypeLink,
 					Action: linebot.NewPostbackAction(
 						answer.Answer,
-						ffmt.Sprintf("question-feedback:%d:%d:%d", tripID, questionID,answer.ID,), "", ""),
+						fmt.Sprintf("question-feedback:%d:%d:%d", tripID, question.ID,answer.ID,), "", ""),
 				})
-				ind++
 			}
 		case "star":
 			for i := 1; i <= len([5]int{1, 2, 3, 4, 5}); i++ {
-				answer := answers[i]
-				elements = append(&linebot.ButtonComponent{
+				elements = append(elements,&linebot.ButtonComponent{
 					Height: linebot.FlexButtonHeightTypeSm,
 					Style:  linebot.FlexButtonStyleTypeLink,
 					Action: linebot.NewPostbackAction(
-						answer.Answer,
 						strings.Repeat("⭐️",i),
-						ffmt.Sprintf("question-feedback:%d:%d:%d", tripID, questionID,i,), "", ""),
+						fmt.Sprintf("question-feedback:%d:%d:%d", tripID, question.ID,i,), "", ""),
 				})
-				ind++
 			}
 	}
 		
@@ -1532,14 +1525,14 @@ func (app *HailingApp) CancellationFeedback(localizer *i18n.Localizer, tripID in
 			Other: "Decide to walk instead",
 		},
 	})
-	ans5 := localizer.MustLocalize(&i18n.LocalizeConfig{
-		DefaultMessage: &i18n.Message{
-			ID:    "InputByMistake",
-			Other: "Input by mistake",
-		},
-	})
+	// ans5 := localizer.MustLocalize(&i18n.LocalizeConfig{
+	// 	DefaultMessage: &i18n.Message{
+	// 		ID:    "InputByMistake",
+	// 		Other: "Input by mistake",
+	// 	},
+	// })
 
-	postbackFormat := "/set:cancel-reason:%d:%s"
+	postbackFormat := "/set:cancel-reason:%d:%s:%d"
 
 	elements := []linebot.FlexComponent{
 		&linebot.TextComponent{
@@ -1554,36 +1547,36 @@ func (app *HailingApp) CancellationFeedback(localizer *i18n.Localizer, tripID in
 			Style:  linebot.FlexButtonStyleTypeLink,
 			Action: linebot.NewPostbackAction(
 				ans1,
-				fmt.Sprintf(postbackFormat, tripID, "wait-too-long"), "", ""),
+				fmt.Sprintf(postbackFormat, tripID, "wait-too-long",1), "", ""),
 		},
 		&linebot.ButtonComponent{
 			Height: linebot.FlexButtonHeightTypeMd,
 			Style:  linebot.FlexButtonStyleTypeLink,
 			Action: linebot.NewPostbackAction(
 				ans2,
-				fmt.Sprintf(postbackFormat, tripID, "no-longer-need"), "", ""),
+				fmt.Sprintf(postbackFormat, tripID, "no-longer-need",2), "", ""),
 		},
 		&linebot.ButtonComponent{
 			Height: linebot.FlexButtonHeightTypeMd,
 			Style:  linebot.FlexButtonStyleTypeLink,
 			Action: linebot.NewPostbackAction(
 				ans3,
-				fmt.Sprintf(postbackFormat, tripID, "take-another-mod"), "", ""),
+				fmt.Sprintf(postbackFormat, tripID, "take-another-mod",3), "", ""),
 		},
 		&linebot.ButtonComponent{
 			Height: linebot.FlexButtonHeightTypeMd,
 			Style:  linebot.FlexButtonStyleTypeLink,
 			Action: linebot.NewPostbackAction(
 				ans4,
-				fmt.Sprintf(postbackFormat, tripID, "walk"), "", ""),
+				fmt.Sprintf(postbackFormat, tripID, "walk",4), "", ""),
 		},
-		&linebot.ButtonComponent{
-			Height: linebot.FlexButtonHeightTypeMd,
-			Style:  linebot.FlexButtonStyleTypeLink,
-			Action: linebot.NewPostbackAction(
-				ans5,
-				fmt.Sprintf(postbackFormat, tripID, "mistake"), "", ""),
-		},
+		// &linebot.ButtonComponent{
+		// 	Height: linebot.FlexButtonHeightTypeMd,
+		// 	Style:  linebot.FlexButtonStyleTypeLink,
+		// 	Action: linebot.NewPostbackAction(
+		// 		ans5,
+		// 		fmt.Sprintf(postbackFormat, tripID, "mistake"), "", ""),
+		// },
 	}
 
 	contents := &linebot.BubbleContainer{

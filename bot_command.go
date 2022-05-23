@@ -43,8 +43,9 @@ func (app *HailingApp) BotCommandHandler(replyToken string, lineUserID string, r
 			// TODO: [cancel] Store reason to trip record
 			tripID := cmds[2]
 			cancelReason := cmds[3]
+			cancelID := cmds[4]
 			log.Printf("Trip #%s cancelled because of %s", tripID, cancelReason)
-			_, err := app.UpdateCancellationReason(tripID, cancelReason)
+			_, err := app.UpdateCancellationReason(tripID, cancelReason,cancelID)
 			if err != nil {
 				return errors.New("Updating cancellation reason failed")
 			}
@@ -189,7 +190,7 @@ func Find(a []Questionaire, x int) int {
 
 
 // QuestionaireHandler takes care of the questionaire feedback
-func (app *HailingApp) AskQuestionaire(record *ReservationRecord) error {
+func (app *HailingApp) AskQuestionaire(replyToken string, record *ReservationRecord) error {
 	user, _, err := app.Localizer(record.LineUserID)
 	if err != nil {
 		return err
@@ -207,6 +208,7 @@ func (app *HailingApp) AskQuestionaire(record *ReservationRecord) error {
 
 // QuestionaireHandler takes care of the questionaire feedback
 func (app *HailingApp) QuestionaireHandler(replyToken string, lineUserID string, tripID string, questionID string ,rating string) error {
+	var record *ReservationRecord
 	nRating, _ := strconv.Atoi(rating)
 	qID, _ := strconv.Atoi(questionID)
 	tID, _ := strconv.Atoi(tripID)
@@ -223,26 +225,25 @@ func (app *HailingApp) QuestionaireHandler(replyToken string, lineUserID string,
 	if err != nil {
 		return err
 	}
-	nextQuestion = record.QState + 1
+	nextQuestion := record.QState + 1
 	// nextQuestion := Find(record.QList, record.QState) + 1
+	feedbackText := localizer.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "ThankYouSeeYouAgain",
+			Other: "Thank you for your feedback. We hope to see you again.",
+		},
+	})
 	if(nextQuestion>=len(record.QList)){
-		feedbackText := localizer.MustLocalize(&i18n.LocalizeConfig{
-			DefaultMessage: &i18n.Message{
-				ID:    "ThankYouSeeYouAgain",
-				Other: "Thank you for your feedback. We hope to see you again.",
-			},
-		})
 		app.Cleanup(lineUserID)
 	}else{
 		record.QState = nextQuestion
 		// record.QState = record.QList[nextQuestion]
-		err = app.SaveRecordToRedis(rec)
+		err = app.SaveRecordToRedis(record)
 		if err != nil {
 			return err
 		}
-		return app.AskQuestionaire(record)
+		return app.AskQuestionaire(replyToken, record)
 	}
-
 	return app.replyText(replyToken, feedbackText)
 }
 

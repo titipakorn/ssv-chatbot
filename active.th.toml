@@ -16,11 +16,11 @@ other = "ยกเลิก"
 
 [CancellationAnswerNoLongerNeed]
 hash = "sha1-d8dbb17c96c3f71dd320836c73502fb93bb0ded8"
-other = "ไม่ต้องการแล้ว"
+other = "ไม่ต้องเดินทางแล้ว"
 
 [CancellationAnswerTakeAnotherMode]
 hash = "sha1-70bd0c2bd637d9cb1263e8f801679d7115a3abc0"
-other = "ใช้การเดินทางอื่น"
+other = "เปลี่ยนไปใช้บริการอื่น"
 
 [CancellationAnswerWaitTooLong]
 hash = "sha1-6c80ed0636582dbdc6e9a4f339517ef00af33140"
@@ -28,11 +28,11 @@ other = "รอนานเกินไป"
 
 [CancellationAnswerWalk]
 hash = "sha1-1d4f99e0f74f807e65f82ff788265567fa63934b"
-other = "เดินแทน"
+other = "เปลี่ยนใจเป็นเดินทางด้วยการเดิน"
 
 [CancellationQuestionTitle]
 hash = "sha1-f234df7d549da7563c348a1f134bec0632242463"
-other = "เหตุผลที่ยกเลิกการจอง"
+other = "โปรดบอกเหตุผลในการยกเลิก"
 
 [ChangePickupTime]
 hash = "sha1-6fe1b87d93c074860ffd6252c5fa5e0601086ba3"
