@@ -152,9 +152,33 @@ func (app *HailingApp) Webhook(w http.ResponseWriter, req *http.Request) {
 		// msg := linebot.NewTextMessage("Ride is done, any feedback?")
 		// TODO: should get tripID and pass along too
 		tripID := newData.ID
-		msg := app.StarFeedbackFlex(tripID, localizer)
+		// msg := app.StarFeedbackFlex(tripID, localizer)
+		record, err = app.FindRecord(lineUserID)
+		if err != nil {
+			log.Println("[WEBHOOK] Error FindRecord: ", err)
+			errMessage := Response{Message: fmt.Sprintf("No Record")}
+			jsonResponse(w, 500, errMessage)
+		}
+		record.State = "jobOver"
+		questions, err = app.GetQuestions(user.Language)
+		if err != nil {
+			log.Println("[WEBHOOK] Error GetQuestions: ", err)
+			errMessage := Response{Message: fmt.Sprintf("No Record")}
+			jsonResponse(w, 500, errMessage)
+		}
+		record.QList = questions
+		record.QState = 0
+		// record.QState = questions[0].ID
+		err = app.SaveRecordToRedis(rec)
+		if err != nil {
+			log.Println("[WEBHOOK] Error SaveToRedis: ", err)
+			errMessage := Response{Message: fmt.Sprintf("No Record")}
+			jsonResponse(w, 500, errMessage)
+		}
+		// msg := app.StarFeedbackFlex(tripID, localizer)
+		msg := app.QuestionFlex(record.QList[record.QState],record.TripID,user.Language)
 		app.PushNotification(user.LineUserID, msg)
-		app.Cleanup(user.LineUserID)
+		// app.Cleanup(user.LineUserID)
 	}
 
 	msg := Response{Message: "success"}

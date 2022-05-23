@@ -177,3 +177,72 @@ func (app *HailingApp) FeedbackHandler(replyToken string, lineUserID string, tri
 	})
 	return app.replyText(replyToken, feedbackText)
 }
+
+func Find(a []Questionaire, x int) int {
+    for i, n := range a {
+        if x == n.ID {
+            return i
+        }
+    }
+    return len(a)
+}
+
+
+// QuestionaireHandler takes care of the questionaire feedback
+func (app *HailingApp) AskQuestionaire(record *ReservationRecord) error {
+	user, _, err := app.Localizer(record.LineUserID)
+	if err != nil {
+		return err
+	}
+	if _, err := app.bot.ReplyMessage(
+		replyToken,
+		app.QuestionFlex(record.QList[record.QState],record.TripID,user.Language),
+	).Do(); err != nil {
+		return err
+	}
+	return nil
+}
+
+
+
+// QuestionaireHandler takes care of the questionaire feedback
+func (app *HailingApp) QuestionaireHandler(replyToken string, lineUserID string, tripID string, questionID string ,rating string) error {
+	nRating, _ := strconv.Atoi(rating)
+	qID, _ := strconv.Atoi(questionID)
+	tID, _ := strconv.Atoi(tripID)
+	_, err := app.SaveTripQuestionaire(tID, qID, nRating)
+	if err != nil {
+		return err
+	}
+	_, localizer, err := app.Localizer(lineUserID)
+	if err != nil {
+		return err
+	}
+
+	record, err = app.FindRecord(lineUserID)
+	if err != nil {
+		return err
+	}
+	nextQuestion = record.QState + 1
+	// nextQuestion := Find(record.QList, record.QState) + 1
+	if(nextQuestion>=len(record.QList)){
+		feedbackText := localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{
+				ID:    "ThankYouSeeYouAgain",
+				Other: "Thank you for your feedback. We hope to see you again.",
+			},
+		})
+		app.Cleanup(lineUserID)
+	}else{
+		record.QState = nextQuestion
+		// record.QState = record.QList[nextQuestion]
+		err = app.SaveRecordToRedis(rec)
+		if err != nil {
+			return err
+		}
+		return app.AskQuestionaire(record)
+	}
+
+	return app.replyText(replyToken, feedbackText)
+}
+

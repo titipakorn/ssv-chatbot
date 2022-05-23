@@ -38,6 +38,8 @@ type ReservationRecord struct {
 	IsConfirmed     bool       `json:"is_confirmed"`
 	Polyline        string     `json:"polyline"`
 	NumOfPassengers int        `json:"num_of_passengers"` // postgresql id
+	QState          int     `json:"qstate"` // i.e. q_id
+	QList        	[]Questionaire     `json:"qlist"` // i.e. q_id
 	// DroppedOffAt time.Time  `json:"dropped_off_at"`
 }
 

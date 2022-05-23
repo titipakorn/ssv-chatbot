@@ -52,6 +52,19 @@ type Trip struct {
 	DriverFeedback int    `json:"driver_feedback"`
 }
 
+// Question stores question information
+type Questionaire struct {
+	ID           	int        `json:"id"`
+	Question       string     `json:"question"`
+	Type           string     `json:"type"`
+}
+
+// Answer stores answers in question
+type Answer struct {
+	ID           	int        `json:"id"`
+	Answer       string     `json:"answer"`
+}
+
 // Location stores a list of available choices
 type Location struct {
 	ID    int    `json:"id"`
@@ -308,6 +321,20 @@ func (app *HailingApp) SaveTripFeedback(tripID int, rating int) (string, error) 
 	return strconv.Itoa(resultTripID), nil
 }
 
+// SaveTripQuestionaire update feedback from user
+func (app *HailingApp) SaveTripQuestionaire(tripID int, questionID int, answer int) (string, error) {
+	var resultRecordID int
+	err := app.pdb.QueryRow(`
+	insert into "trip_answer"(trip_id,question_id,answer) values ($1,$2,$3)
+	RETURNING id
+	`, tripID, questionID, answer).Scan(&resultRecordID)
+	if err != nil {
+		log.Printf("[save2psql-cancel] %v", err)
+		return "failed", err
+	}
+	return strconv.Itoa(resultRecordID), nil
+}
+
 // UpdateUserInfo handles user info change
 func (app *HailingApp) UpdateUserInfo(userID uuid.UUID, updateQuery string) (string, error) {
 	var resultID uuid.UUID
@@ -370,6 +397,89 @@ func (app *HailingApp) GetTripRecord(rec *ReservationRecord) (*Trip, error) {
 	}
 	return &trip, nil
 }
+
+
+// GetQuestions returns questions record
+func (app *HailingApp) GetQuestions(lang string) ([]Questionaire, error) {
+	results := []Questionaire{}
+	fieldName := "question"
+	switch lang {
+	case "ja":
+		fieldName = "question_ja"
+	case "th":
+		fieldName = "question_th"
+	}
+	q := fmt.Sprintf(`SELECT id, %s, type
+		FROM location WHERE active=true
+		ORDER BY "order" ASC`, fieldName)
+	rows, err := app.pdb.Query(q)
+	if err != nil {
+		log.Printf("[GetQuestions] %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var one Question
+		err = rows.Scan(&one.ID, &one.Question, &one.Type)
+		if err != nil {
+			continue
+		}
+		results = append(results, one)
+	}
+	return results, nil
+}
+
+// GetQuestions returns questions record
+func (app *HailingApp) GetQuestion(lang string, questionID int) (*Questionaire, error) {
+	question := Questionaire{}
+	fieldName := "question"
+	switch lang {
+	case "ja":
+		fieldName = "question_ja"
+	case "th":
+		fieldName = "question_th"
+	}
+	q := fmt.Sprintf(`SELECT id, %s, type
+		FROM question_table WHERE id=$1`, fieldName)
+	err := app.pdb.QueryRow(q,questionID).Scan(
+		&question.ID, &question.Question, &question.Type,
+	)
+	if err != nil {
+		log.Printf("[GetQuestion] %v", err)
+		return nil, err
+	}
+	return &question, nil
+}
+
+// GetAnswers returns questions record
+func (app *HailingApp) GetAnswers(lang string,questionID int) ([]Answer, error) {
+	answer := []Answer{}
+	fieldName := "answer"
+	switch lang {
+	case "ja":
+		fieldName = "answer_ja"
+	case "th":
+		fieldName = "answer_th"
+	}
+	q := fmt.Sprintf(`SELECT id, %s
+	FROM answer_table WHERE id=$1 order by id asc`, fieldName)
+	rows, err := app.pdb.Query(q)
+	if err != nil {
+		log.Printf("[GetAnswers] %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var one Question
+		err = rows.Scan(&one.ID, &one.Answer)
+		if err != nil {
+			continue
+		}
+		results = append(results, one)
+	}
+	return results, nil
+}
+
 
 // CancelReservation will handle whether it's okay to cancel or not too
 func (app *HailingApp) CancelReservation(rec *ReservationRecord) (string, error) {

@@ -126,6 +126,12 @@ func (app *HailingApp) extractReplyFromPostback(event *linebot.Event) error {
 			return app.UnhandledCase(event.ReplyToken)
 		}
 		return app.FeedbackHandler(event.ReplyToken, lineUserID, postbackType[1], postbackType[2])
+	case "question-feedback":
+		if len(postbackType) != 4 {
+			log.Printf("[PostbackExtractor] star-feedback unhandled case : data: %v\n", data)
+			return app.UnhandledCase(event.ReplyToken)
+		}
+		return app.QuestionaireHandler(event.ReplyToken, lineUserID, postbackType[1], postbackType[2],postbackType[3])
 	case "datetime":
 		layout := "2006-01-02T15:04-07:00"
 		str := fmt.Sprintf("%v+07:00", event.Postback.Params.Datetime)
@@ -403,10 +409,32 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 		}
 		return nil
 	}
+
+	if record.State == "jobOver" {
+		// this need special care
+		return app.AskQuestionaire(record)
+	}
+
 	return app.replyQuestion(replyToken, localizer, record, msgs...)
 }
 
 func (app *HailingApp) replyQuestion(replyToken string, localizer *i18n.Localizer, record *ReservationRecord, msgs ...string) error {
+	// question := record.QuestionToAsk(localizer)
+	question := app.QuestionToAsk(record, localizer)
+	if question.YesInput {
+		return app.replyFinalStep(replyToken, localizer, record)
+	}
+	if question.Text == "When?" {
+		return app.replyTravelTimeOptionsAndWhen(replyToken, record, question)
+	}
+	// regular question flow
+	if err := app.replyBack(replyToken, question, msgs...); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (app *HailingApp) askQuestions(replyToken string, localizer *i18n.Localizer, record *ReservationRecord, msgs ...string) error {
 	// question := record.QuestionToAsk(localizer)
 	question := app.QuestionToAsk(record, localizer)
 	if question.YesInput {
@@ -686,6 +714,81 @@ func (app *HailingApp) travelOption(icon string, distance string, duration strin
 			},
 		},
 	}
+}
+
+
+// QuestionFlex let user answer questionaires of the service
+func (app *HailingApp) QuestionFlex(question *Questionaire, tripID int, lang string) linebot.SendingMessage {
+	// question, err := app.GetQuestion(lang, questionID)
+	// if err != nil {
+	// 	return nil
+	// }
+
+	answers, err := app.GetAnswers(lang, questionID)
+	if err != nil {
+		return nil
+	}
+
+	flexLabel := 3
+	flexDesc := 7
+	
+	elements := []linebot.FlexComponent{
+		&linebot.TextComponent{
+			Type:   linebot.FlexComponentTypeText,
+			Text:   question.Question,
+			Wrap:   true,
+			Weight: linebot.FlexTextWeightTypeBold,
+			Size:   linebot.FlexTextSizeTypeLg,
+		},
+	}
+	switch question.Type {
+		case "choice":
+			for i := 0; i < len(answers); i++ {
+				answer := answers[i]
+				elements = append(&linebot.ButtonComponent{
+					Height: linebot.FlexButtonHeightTypeSm,
+					Style:  linebot.FlexButtonStyleTypeLink,
+					Action: linebot.NewPostbackAction(
+						answer.Answer,
+						ffmt.Sprintf("question-feedback:%d:%d:%d", tripID, questionID,answer.ID,), "", ""),
+				})
+				ind++
+			}
+		case "star":
+			for i := 1; i <= len([5]int{1, 2, 3, 4, 5}); i++ {
+				answer := answers[i]
+				elements = append(&linebot.ButtonComponent{
+					Height: linebot.FlexButtonHeightTypeSm,
+					Style:  linebot.FlexButtonStyleTypeLink,
+					Action: linebot.NewPostbackAction(
+						answer.Answer,
+						strings.Repeat("⭐️",i),
+						ffmt.Sprintf("question-feedback:%d:%d:%d", tripID, questionID,i,), "", ""),
+				})
+				ind++
+			}
+	}
+		
+	contents := &linebot.BubbleContainer{
+		Type: linebot.FlexContainerTypeBubble,
+		Body: &linebot.BoxComponent{
+			Type:     linebot.FlexComponentTypeBox,
+			Layout:   linebot.FlexBoxLayoutTypeVertical,
+			Contents: elements,
+		},
+		Footer: &linebot.BoxComponent{
+			Type:   linebot.FlexComponentTypeBox,
+			Layout: linebot.FlexBoxLayoutTypeVertical,
+			Contents: []linebot.FlexComponent{
+				&linebot.SpacerComponent{
+					Type: linebot.FlexComponentTypeSeparator,
+					Size: linebot.FlexSpacerSizeTypeSm,
+				},
+			},
+		},
+	}
+
+	return linebot.NewFlexMessage("QuestionFeedback", contents)
 }
 
 // StarFeedbackFlex lets user rating the service
