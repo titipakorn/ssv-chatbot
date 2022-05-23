@@ -227,12 +227,12 @@ func (app *HailingApp) QuestionaireHandler(replyToken string, lineUserID string,
 	}
 	nextQuestion := record.QState + 1
 	// nextQuestion := Find(record.QList, record.QState) + 1
-	feedbackText := localizer.MustLocalize(&i18n.LocalizeConfig{
-		DefaultMessage: &i18n.Message{
-			ID:    "ThankYouSeeYouAgain",
-			Other: "Thank you for your feedback. We hope to see you again.",
-		},
-	})
+	// feedbackText := localizer.MustLocalize(&i18n.LocalizeConfig{
+	// 	DefaultMessage: &i18n.Message{
+	// 		ID:    "ThankYouSeeYouAgain",
+	// 		Other: "Thank you for your feedback. We hope to see you again.",
+	// 	},
+	// })
 	if(nextQuestion>=len(record.QList)){
 		app.Cleanup(lineUserID)
 	}else{
@@ -244,6 +244,15 @@ func (app *HailingApp) QuestionaireHandler(replyToken string, lineUserID string,
 		}
 		return app.AskQuestionaire(replyToken, record)
 	}
-	return app.replyText(replyToken, feedbackText)
+
+	if _, err := app.bot.ReplyMessage(
+		replyToken,
+		app.StarFeedbackFlex(tID, localizer),
+	).Do(); err != nil {
+		return err
+	}
+	return nil
+	// return app.bot.ReplyMessage(replyToken,msg)
+	// return app.replyText(replyToken, feedbackText)
 }
 
