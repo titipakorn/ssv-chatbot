@@ -397,7 +397,8 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 		}
 	}
 
-	// log.Printf("[handleNextStep] %v\n   PrevReply = %v", record, reply)
+	log.Printf("[handleNextStep] %v\n   PrevReply = %v", record, reply)
+
 	if record.State == "done" {
 		// this need special care
 		if _, err := app.bot.ReplyMessage(
@@ -413,6 +414,10 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 	if record.State == "jobOver" {
 		// this need special care
 		// return app.AskQuestionaire(replyToken, record)
+		if(record.TripID==-1){
+			app.Cleanup(lineUserID)
+			return nil
+		}
 		if _, err := app.bot.ReplyMessage(
 			replyToken,
 			app.AskQuestionaire(record),
