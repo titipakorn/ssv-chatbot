@@ -235,3 +235,9 @@ other = "今日の勤務時間は{{.START_WORK_TIME}}から{{.END_WORK_TIME}}ま
 
 [JobID]
 other = "ジョブID"
+
+[ThankYouForAnswer]
+other = "答えをありがとうございます。"
+
+[AlreadyAnswer]
+other = "すでに答えを出しました。"

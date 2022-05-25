@@ -235,3 +235,9 @@ other = "วันนี้มีเวลาทำงานจาก {{.START_W
 
 [JobID]
 other = "รหัสงาน"
+
+[ThankYouForAnswer]
+other = "ขอบคุณสำหรับคำตอบ"
+
+[AlreadyAnswer]
+other = "คุณตอบคำถามนี้ไปแล้ว"

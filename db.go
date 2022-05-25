@@ -274,7 +274,7 @@ func (app *HailingApp) SaveReservationToPostgres(rec *ReservationRecord) (int, e
 // FindActiveReservation query from postgresql and put in redis
 func (app *HailingApp) FindActiveReservation(lineUserID string) (*ReservationRecord, error) {
 	record := ReservationRecord{LineUserID: lineUserID, State: "done", IsConfirmed: true}
-
+	//add userfeedback check to avoid skip answering questionaires
 	var pFrom orb.Point
 	var pTo orb.Point
 	var pickedUpAt sql.NullTime
@@ -326,7 +326,7 @@ func (app *HailingApp) SaveTripQuestionaire(tripID int, questionID int, answer i
 	var resultRecordID int
 	err := app.pdb.QueryRow(`
 	insert into "trip_answers"(trip_id,question_id,answer) values ($1,$2,$3)
-	RETURNING id
+	RETURNING trip_id
 	`, tripID, questionID, answer).Scan(&resultRecordID)
 	if err != nil {
 		log.Printf("[save2psql-cancel] %v", err)

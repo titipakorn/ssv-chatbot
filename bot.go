@@ -412,7 +412,14 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 
 	if record.State == "jobOver" {
 		// this need special care
-		return app.AskQuestionaire(replyToken, record)
+		// return app.AskQuestionaire(replyToken, record)
+		if _, err := app.bot.ReplyMessage(
+			replyToken,
+			app.AskQuestionaire(record),
+		).Do(); err != nil {
+			return err
+		}
+		return nil
 	}
 
 	return app.replyQuestion(replyToken, localizer, record, msgs...)
