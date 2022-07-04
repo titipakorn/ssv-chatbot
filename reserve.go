@@ -204,7 +204,7 @@ func (record *ReservationRecord) IsComplete() (bool, string) {
 // SaveRecordToRedis which save ReservationRecord to redis for faster process
 func (app *HailingApp) SaveRecordToRedis(record *ReservationRecord) error {
 	buff, _ := json.Marshal(&record)
-	cacheDuration := 10 * time.Minute
+	cacheDuration := 48*60 * time.Minute
 	// log.Printf("[ProcessReservationStep] post_status_change: %s \n   >> record: %v", rec.State, rec.UpdatedAt)
 	if err := app.rdb.Set(record.LineUserID, buff, cacheDuration).Err(); err != nil {
 		log.Printf("Redis Error: %v", err)
