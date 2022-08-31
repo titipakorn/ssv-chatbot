@@ -531,3 +531,15 @@ func (app *HailingApp) UpdateCancellationReason(tripID string, reason string, ca
 	return "success", nil
 
 }
+
+// isLocationInServiceArea returns boolean
+func (app *HailingApp) isLocationInServiceArea(point [2]float64) (bool, error) {
+	var isIn bool
+	q := fmt.Sprintf(`select ST_WITHIN(ST_GeomFromText('POINT(%.6f %.6f)',4326), geometry) from service_area`, point[0],point[1])
+	err := app.pdb.QueryRow(q).Scan(&isIn)
+	if err != nil {
+		log.Printf("[isLocationInServiceArea] %v", err)
+		return false, err
+	}
+	return isIn, nil
+}

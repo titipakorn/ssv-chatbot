@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	// "io/ioutil"
 	"log"
 	"regexp"
 	"strconv"
@@ -14,9 +14,9 @@ import (
 	"github.com/go-redis/redis/v7"
 	"github.com/google/uuid"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
-	"github.com/paulmach/orb"
-	"github.com/paulmach/orb/geojson"
-	"github.com/paulmach/orb/planar"
+	// "github.com/paulmach/orb"
+	// "github.com/paulmach/orb/geojson"
+	// "github.com/paulmach/orb/planar"
 )
 
 // ReservationRecord : whole process record
@@ -450,13 +450,23 @@ func (app *HailingApp) QuestionToAsk(record *ReservationRecord, localizer *i18n.
 }
 
 // IsLocation validates if the location is in the service area
-func IsLocation(reply Reply) (bool, error) {
+func (app *HailingApp) IsLocation(reply Reply) (bool, error) {
 	if reply.Coords != [2]float64{0, 0} {
-		b, _ := ioutil.ReadFile("./static/service_area.json")
-		feature, _ := geojson.UnmarshalFeature(b)
-		pnt := orb.Point(reply.Coords)
-		// NOTE: change to postgis if accuracy needed
-		if planar.PolygonContains(feature.Geometry.Bound().ToPolygon(), pnt) {
+		// b, _ := ioutil.ReadFile("./static/service_area.json")
+		// feature, _ := geojson.UnmarshalFeature(b)
+		// pnt := orb.Point(reply.Coords)
+		// // NOTE: change to postgis if accuracy needed
+		// if planar.PolygonContains(feature.Geometry.Bound().ToPolygon(), pnt) {
+		// 	log.Printf("[IsLocation] PASS IN POLYGON")
+		// 	return true, nil
+		// }
+
+		//using postgis
+		isIn, err := app.isLocationInServiceArea(reply.Coords)
+		if err != nil {
+			return false, errors.New("Outside service area")
+		}
+		if isIn {
 			return true, nil
 		}
 		return false, errors.New("Outside service area")
@@ -527,7 +537,7 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 
 	switch rec.Waiting {
 	case "from":
-		_, err := IsLocation(reply)
+		_, err := app.IsLocation(reply)
 		if err != nil {
 			return rec, err
 		}
@@ -559,7 +569,7 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 			}
 		}
 	case "to":
-		_, err := IsLocation(reply)
+		_, err := app.IsLocation(reply)
 		if err != nil {
 			return rec, err
 		}
