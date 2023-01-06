@@ -192,7 +192,7 @@ other = "{{.Min}} นาที"
 
 [VehicleWillPickYouUp]
 hash = "sha1-da2e2a4d04829d07c52714f94e8b6d4b343afc8d"
-other = "{{.DriverName}} จะมารับคุณด้วยรถ {{.VehicleName}}"
+other = "{{.DriverName}} จะมารับคุณด้วยรถ {{.VehicleName}}: เลข {{.LicensePlate}}"
 
 [WalkInstead]
 hash = "sha1-aa0b91d9af024fa851a919365054a37dd556ed6d"

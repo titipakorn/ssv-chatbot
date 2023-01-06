@@ -76,6 +76,7 @@ type Vehicle struct {
 	ID         int    `json:"id"`
 	Name       string `json:"name"`
 	DriverName string `json:"driver_name"`
+	LicensePlate string `json:"license_plate"`
 }
 
 type WorkTable struct {
@@ -87,12 +88,12 @@ type WorkTable struct {
 
 func (app *HailingApp) GetActiveVehicleByDriverID(ID uuid.UUID) (*Vehicle, error) {
 	result := Vehicle{}
-	err := app.pdb.QueryRow(`SELECT v.id, v.name, u.username
+	err := app.pdb.QueryRow(`SELECT v.id, v.name, u.username, v.license_plate
 		FROM working_shift ws
 		LEFT JOIN vehicle v on ws.vehicle_id = v.id
 		LEFT JOIN public.user u on ws.user_id = u.id
 		WHERE ws.user_id = $1
-		AND ws.end is NULL;`, ID).Scan(&result.ID, &result.Name, &result.DriverName)
+		AND ws.end is NULL;`, ID).Scan(&result.ID, &result.Name, &result.DriverName, &result.LicensePlate)
 	if err != nil {
 		return nil, err
 	}

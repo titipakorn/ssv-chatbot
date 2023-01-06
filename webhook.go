@@ -124,11 +124,12 @@ func (app *HailingApp) Webhook(w http.ResponseWriter, req *http.Request) {
 			txt2 := localizer.MustLocalize(&i18n.LocalizeConfig{
 				DefaultMessage: &i18n.Message{
 					ID:    "VehicleWillPickYouUp",
-					Other: "{{.VehicleName}} by driver {{.DriverName}}, will pick you up.",
+					Other: "{{.VehicleName}}: No. {{.LicensePlate}} by driver {{.DriverName}}, will pick you up.",
 				},
 				TemplateData: map[string]string{
 					"VehicleName": vehicle.Name,
 					"DriverName": vehicle.DriverName,
+					"LicensePlate": vehicle.LicensePlate,
 				},
 			})
 			txt3 := fmt.Sprintf("%s \n%s", txt, txt2)
