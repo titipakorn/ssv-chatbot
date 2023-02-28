@@ -570,9 +570,12 @@ func (app *HailingApp) replyBack(replyToken string, question Question, messages 
 		}
 	}
 	// ask question
-	if(question.ExtraText!=""){
-		sendingMsgs = append(sendingMsgs, linebot.NewTextMessage(question.ExtraText))
+	for j := 0; j < len(question.ExtraText); j++ {
+		if question.ExtraText[i] != "" {
+			sendingMsgs = append(sendingMsgs, linebot.NewTextMessage(question.ExtraText[j]))
+		}
 	}
+	
 	sendingMsgs = append(sendingMsgs, linebot.NewTextMessage(question.Text).WithQuickReplies(replyItems))
 
 	if _, err := app.bot.ReplyMessage(

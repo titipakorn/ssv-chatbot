@@ -241,3 +241,6 @@ other = "ขอบคุณสำหรับคำตอบ"
 
 [AlreadyAnswer]
 other = "คุณตอบคำถามนี้ไปแล้ว"
+
+[BookedJob]
+other = "ในขณะนี้มีจำนวนการจอง {{.BOOKED_RECORDS}} รายการภายใน 1 ชม. และมีรถว่างจำนวน {{.AVAILABLE_CARS}} คัน"

@@ -86,6 +86,10 @@ type WorkTable struct {
 	END_BREAK_TIME 		string `json:"end_break_time"`
 }
 
+type CNTResult struct {
+	CNT     string `json:"cnt"`
+}
+
 func (app *HailingApp) GetActiveVehicleByDriverID(ID uuid.UUID) (*Vehicle, error) {
 	result := Vehicle{}
 	err := app.pdb.QueryRow(`SELECT v.id, v.name, u.username, v.license_plate
@@ -109,6 +113,26 @@ func (app *HailingApp) GetWorkTable() (*WorkTable, error) {
 		return nil, err
 	}
 	log.Printf("[GET WORKTABLE] %v", result)
+	return &result, nil
+}
+
+func (app *HailingApp) GetBookedJob() (*CNTResult, error) {
+	result := CNTResult{}
+	err := app.pdb.QueryRow(`select count(*) as cnt from trip where cancelled_at is null and dropped_off_at is null and reserved_at between now()-interval '1 hour' and now()+interval '1 hour'`).Scan(&result.CNT)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("[GET BookedJob] %v", result)
+	return &result, nil
+}
+
+func (app *HailingApp) GetAvailableCar() (*CNTResult, error) {
+	result := CNTResult{}
+	err := app.pdb.QueryRow(`select coalesce(sum(case when cnt=0 then 1 end),0) as cnt from (select w.user_id, coalesce(sum(case when t.user_id is not null then 1 end),0) as cnt from working_shift w left join trip t on w.user_id=t.driver_id and t.dropped_off_at is null and t.cancelled_at is null where now()::date=w.start::date and w.end is null group by w.user_id) a`).Scan(&result.CNT)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("[GET AvailableCar] %v", result)
 	return &result, nil
 }
 

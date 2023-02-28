@@ -62,7 +62,7 @@ type QuickReplyButton struct {
 
 // Question contains what's the message and extra options for Chatbot
 type Question struct {
-	ExtraText	  string `json:"extra_text"`
+	ExtraText	  []string `json:"extra_text"`
 	Text          string `json:"text"`
 	Buttons       []QuickReplyButton
 	DatetimeInput bool
@@ -320,8 +320,10 @@ func (app *HailingApp) QuestionToAsk(record *ReservationRecord, localizer *i18n.
 	switch strings.ToLower(record.Waiting) {
 	case "to":
 		worktable, err := app.GetWorkTable()
+		bookedJob, err_b := app.GetBookedJob()
+		availableCar, err_a := app.GetAvailableCar()
 		buttons := app.QuickReplyLocations(record)
-		if err == nil {
+		if err == nil && err_a == nil && err_b == nil {
 		return Question{
 			Text: localizer.MustLocalize(&i18n.LocalizeConfig{
 				DefaultMessage: &i18n.Message{
@@ -329,7 +331,7 @@ func (app *HailingApp) QuestionToAsk(record *ReservationRecord, localizer *i18n.
 					Other: "Where to?",
 				},
 			}),
-			ExtraText: localizer.MustLocalize(&i18n.LocalizeConfig{
+			ExtraText: []string{localizer.MustLocalize(&i18n.LocalizeConfig{
 				DefaultMessage: &i18n.Message{
 					ID:    "WorkTable",
 					Other: "Today's working hour is from {{.START_WORK_TIME}} to {{.END_WORK_TIME}}, a lunch break from {{.START_BREAK_TIME}} to {{.END_BREAK_TIME}}.",
@@ -340,7 +342,16 @@ func (app *HailingApp) QuestionToAsk(record *ReservationRecord, localizer *i18n.
 					"START_BREAK_TIME": worktable.START_BREAK_TIME,
 					"END_BREAK_TIME": worktable.END_BREAK_TIME,
 				},
-			}),
+			}),localizer.MustLocalize(&i18n.LocalizeConfig{
+				DefaultMessage: &i18n.Message{
+					ID:    "BookedJob",
+					Other: "There are {{.BOOKED_RECORDS}} bookings within 1 hour and {{.AVAILABLE_CARS}} car(s) are empty as of now.",
+				},
+				TemplateData: map[string]string{
+					"BOOKED_RECORDS": bookedJob.CNT,
+					"AVAILABLE_CARS": availableCar.CNT,
+				},
+			})},
 			Buttons:       buttons,
 			LocationInput: true,
 		}

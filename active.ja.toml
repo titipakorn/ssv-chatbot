@@ -241,3 +241,6 @@ other = "答えをありがとうございます。"
 
 [AlreadyAnswer]
 other = "すでに答えを出しました。"
+
+[BookedJob]
+other = "一時間内の予約は{{.BOOKED_RECORDS}}件あります。現在の空き車両は{{.AVAILABLE_CARS}}台です。"
