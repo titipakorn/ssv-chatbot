@@ -200,7 +200,7 @@ func (record *ReservationRecord) IsComplete() (bool, string) {
 	if record.NumOfPassengers == 0 {
 		return false, "num_of_passengers"
 	}
-	if record.IsShared == 0 {
+	if record.IsShared == "" {
 		return false, "is_shared"
 	}
 	if !record.IsConfirmed {
@@ -461,7 +461,7 @@ func (app *HailingApp) QuestionToAsk(record *ReservationRecord, localizer *i18n.
 						Other: "Whole-car",
 					},
 				}),
-				Text:  "No",
+				Text:  "WholeCar",
 			},
 			{
 				Label: localizer.MustLocalize(&i18n.LocalizeConfig{
@@ -470,7 +470,7 @@ func (app *HailingApp) QuestionToAsk(record *ReservationRecord, localizer *i18n.
 						Other: "Ride-share",
 					},
 				}),
-				Text:  "Yes",
+				Text:  "Share",
 			},
 		}
 		return Question{
@@ -665,9 +665,9 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 		}
 		rec.NumOfPassengers = num
 	case "is_shared":
-		if (reply.Text=="Yes") {
+		if (reply.Text=="Share") {
 			rec.IsShared = "Yes"
-		} else if(reply.Text=="No"){
+		} else if(reply.Text=="WholeCar"){
 			rec.IsShared = "No"
 		}
 	case "final":
