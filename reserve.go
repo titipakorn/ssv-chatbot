@@ -38,6 +38,7 @@ type ReservationRecord struct {
 	IsConfirmed     bool       `json:"is_confirmed"`
 	Polyline        string     `json:"polyline"`
 	NumOfPassengers int        `json:"num_of_passengers"` // postgresql id
+	IsShared     	string      `json:"is_shared"`
 	QState          int     `json:"qstate"` // i.e. q_id
 	QList        	[]Questionaire     `json:"qlist"` // i.e. q_id
 	// DroppedOffAt time.Time  `json:"dropped_off_at"`
@@ -107,6 +108,10 @@ func (record *ReservationRecord) WhatsNext() string {
 	case "num_of_passengers":
 		if record.NumOfPassengers == 0 {
 			return "num_of_passengers"
+		}
+	case "is_shared":
+		if record.IsShared == "" {
+			return "is_shared"
 		}
 	case "final":
 		return "done"
@@ -194,6 +199,9 @@ func (record *ReservationRecord) IsComplete() (bool, string) {
 	}
 	if record.NumOfPassengers == 0 {
 		return false, "num_of_passengers"
+	}
+	if record.IsShared == 0 {
+		return false, "is_shared"
 	}
 	if !record.IsConfirmed {
 		return false, "final"
@@ -444,6 +452,36 @@ func (app *HailingApp) QuestionToAsk(record *ReservationRecord, localizer *i18n.
 			}),
 			Buttons: buttons,
 		}
+	case "is_shared":
+		buttons := []QuickReplyButton{
+			{
+				Label: localizer.MustLocalize(&i18n.LocalizeConfig{
+					DefaultMessage: &i18n.Message{
+						ID:    "WholeCar",
+						Other: "Whole-car",
+					},
+				}),
+				Text:  "No",
+			},
+			{
+				Label: localizer.MustLocalize(&i18n.LocalizeConfig{
+					DefaultMessage: &i18n.Message{
+						ID:    "Share",
+						Other: "Ride-share",
+					},
+				}),
+				Text:  "Yes",
+			},
+		}
+		return Question{
+			Text: localizer.MustLocalize(&i18n.LocalizeConfig{
+				DefaultMessage: &i18n.Message{
+					ID:    "DoYouWantToShare",
+					Other: "Do you want a whole-car or allow a ride-share?",
+				},
+			}),
+			Buttons: buttons,
+		}
 	case "final":
 		return Question{
 			Text: localizer.MustLocalize(&i18n.LocalizeConfig{
@@ -626,6 +664,12 @@ func (app *HailingApp) ProcessReservationStep(userID string, reply Reply) (*Rese
 			return rec, err
 		}
 		rec.NumOfPassengers = num
+	case "is_shared":
+		if (reply.Text=="Yes") {
+			rec.IsShared = "Yes"
+		} else if(reply.Text=="No"){
+			rec.IsShared = "No"
+		}
 	case "final":
 		// if it's confirmed, then it's done
 		var yesWords = []string{"last-step-confirmation", "confirm", "yes"}

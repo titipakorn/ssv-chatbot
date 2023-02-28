@@ -226,9 +226,21 @@ other = "กำลังจะไปไหน?"
 hash = "sha1-45c75a477131234b3a52b3e6a6731ecd0ca724c3"
 other = "เลือกจากตัวเลือกข้างล่าง?"
 
+[DoYouWantToShare]
+other = "คุณต้องการจองทั้งคันหรือใช้ร่วมกับผู้อื่น"
+
+[WholeCar]
+other = "จองทั้งคัน"
+
+[Share]
+other = "ใช้ร่วมกับผู้อื่น"
+
 [Yes]
 hash = "sha1-5397e0583f14f6c88de06b1ef28f460a1fb5b0ae"
 other = "ใช่"
+
+[No]
+other = "ไม่ใช่"
 
 [WorkTable]
 other = "วันนี้มีเวลาทำงานจาก {{.START_WORK_TIME}} ถึง {{.END_WORK_TIME}} และเวลาพักจาก {{.START_BREAK_TIME}} ถึง {{.END_BREAK_TIME}}"

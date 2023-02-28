@@ -226,9 +226,21 @@ other = "どこへ行きますか？"
 hash = "sha1-45c75a477131234b3a52b3e6a6731ecd0ca724c3"
 other = "どちらかお好みですか？"
 
+[DoYouWantToShare]
+other = "車両を占有しますか？シェアしますか？"
+
+[WholeCar]
+other = "車両を占有"
+
+[Share]
+other = "シェア"
+
 [Yes]
 hash = "sha1-5397e0583f14f6c88de06b1ef28f460a1fb5b0ae"
 other = "はい"
+
+[No]
+other = "いいえ"
 
 [WorkTable]
 other = "今日の勤務時間は{{.START_WORK_TIME}}から{{.END_WORK_TIME}}までで、昼休みは{{.START_BREAK_TIME}}から{{.END_BREAK_TIME}}までです。"

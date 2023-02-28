@@ -271,11 +271,11 @@ func (app *HailingApp) SaveReservationToPostgres(rec *ReservationRecord) (int, e
 		err := app.pdb.QueryRow(`
 		INSERT INTO trip(
 			"user_id", "from", "place_from", "to", "place_to",
-			"reserved_at", "polyline", "no_passengers"
+			"reserved_at", "polyline", "no_passengers", "is_shared"
 		)
-		VALUES($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+		VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
 			rec.UserID, rec.From, placeFrom, rec.To, placeTo,
-			rec.ReservedAt, rec.Polyline, rec.NumOfPassengers,
+			rec.ReservedAt, rec.Polyline, rec.NumOfPassengers, rec.IsShared=="Yes"
 		).Scan(&tripID)
 		if err != nil {
 			log.Printf("[save2psql-create] %v", err)
