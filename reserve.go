@@ -345,7 +345,7 @@ func (app *HailingApp) QuestionToAsk(record *ReservationRecord, localizer *i18n.
 			}),localizer.MustLocalize(&i18n.LocalizeConfig{
 				DefaultMessage: &i18n.Message{
 					ID:    "BookedJob",
-					Other: "There are {{.BOOKED_RECORDS}} bookings within 1 hour and {{.AVAILABLE_CARS}} car(s) are empty as of now.",
+					Other: "There are {{.BOOKED_RECORDS}} booking(s) within 1 hour and {{.AVAILABLE_CARS}} car(s) are empty as of now.",
 				},
 				TemplateData: map[string]string{
 					"BOOKED_RECORDS": bookedJob.CNT,
