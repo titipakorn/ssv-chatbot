@@ -226,9 +226,26 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 
 	// First thig first -- user validation
 	user, _ := app.FindOrCreateUser(lineUserID)
-	if user.FirstName == "" || user.LastName == "" || user.Email == "" {
+	
+	user, localizer, err := app.Localizer(lineUserID)
+	if err != nil {
+		return app.replyText(err.Error())
+	}
+	
+	// if user.FirstName == "" || user.LastName == "" || user.Email == "" {
+	if user.UserType == "" || user.Gender == "" || user.Email == "" || user.Age == "" || user.PrimaryMode == "" || user.FirstImpression == "" {
 		// ask user to fill up this first
 		return app.CompleteRegistration(replyToken, user, reply)
+	}else{
+		rec, _ := app.FindRecord(user.LineUserID)
+		if rec == nil {
+			rec = &ReservationRecord{}
+		}
+		if rec.Title=="register"{
+			app.Cancel(user.LineUserID)
+			return app.registratonDone(replyToken, localizer)
+		}
+
 	}
 
 	if strings.Contains(reply.Text, "[LIFF]") {
@@ -239,10 +256,6 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 		return app.BotCommandHandler(replyToken, lineUserID, reply)
 	}
 
-	user, localizer, err := app.Localizer(lineUserID)
-	if err != nil {
-		return app.replyText(err.Error())
-	}
 
 	// location options
 	if reply.Text == "location-options" {

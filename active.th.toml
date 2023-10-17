@@ -204,7 +204,7 @@ other = "ยินดีต้อนรับครับ"
 
 [WhatIsYourEmail]
 hash = "sha1-eb7a3271d0718b38536f5e4783666c9482cd0a42"
-other = "อีเมล์ของคุณ"
+other = "โปรดระบุอีเมลของผู้ใช้งาน"
 
 [WhatIsYourFirstName]
 hash = "sha1-484b8cfb5482beb3bda116e0627aaca1e693cc22"
@@ -256,3 +256,96 @@ other = "คุณตอบคำถามนี้ไปแล้ว"
 
 [BookedJob]
 other = "ในขณะนี้มีจำนวนการจอง {{.BOOKED_RECORDS}} รายการภายใน 1 ชม. และมีรถว่างจำนวน {{.AVAILABLE_CARS}} คัน"
+
+[WhatIsYourgender]
+other = "โปรดระบุเพศของผู้ใช้งาน"
+
+[WhatIsYourAge]
+other = "โปรดระบุช่วงอายุของผู้ใช้งาน"
+
+[WhatIsYourPrimaryMode]
+other = "โดยปกติผู้ใช้งานเลือกใช้การเดินทางด้วยอะไร"
+
+[HowDidYouFeel]
+other = "เหตุผลที่ผู้ใช้งานเลือกใช้รถบริการไฟฟ้าขนาดเล็ก SSVs"
+
+[A_Professor]
+other = "อาจารย์"
+
+[A_UniversityStaff]
+other = "บุคลากร มธ."
+
+[A_Student]
+other = "นักศึกษา"
+
+[A_PublicGeneral]
+other = "บุคคลทั่วไป"
+
+[A_Male]
+other = "ผู้ชาย"
+
+[A_Female]
+other = "ผู้หญิง"
+
+[A_NotSpecified]
+other = "ไม่ระบุ"
+
+[A_65Up]
+other = "65 ขึ้นไป"
+
+[A_Walk]
+other = "เดินเท้า"
+
+[A_EvBus]
+other = "รถอีวีบัส"
+
+[A_Bicycle]
+other = "รถจักรยาน"
+
+[A_Scooter]
+other = "สกู๊ตเตอร์"
+
+[A_Taxi]
+other = "แท็กซี่(Grabด้วย)"
+
+[A_PrivateCar]
+other = "รถยนต์ส่วนตัว"
+
+[A_Motorbike]
+other = "รถจักรยานยนต์"
+
+[A_ShuttleBus]
+other = "รถประจำทาง"
+
+[A_MotorbikeTaxi]
+other = "วินจักรยานยนต์"
+
+[A_Songthaew]
+other = "รถสองแถว"
+
+[A_Innovative]
+other = "นวัตกรรมสมัยใหม่"
+
+[A_Comfortable]
+other = "รู้สึกสะดวกสบาย"
+
+[A_Ecofriendly]
+other = "รักสิ่งแวดล้อม"
+
+[A_Convenient]
+other = "อำนวยความสะดวก"
+
+[A_SafeAndTrustworthy]
+other = "ปลอดภัยในการใช้งาน"
+
+[A_FastTravelSpeed]
+other = "เดินทางได้รวดเร็ว"
+
+[A_LessWaitingTime]
+other = "รอไม่นาน"
+
+[AskToAnswerAgain]
+other = "กรุณาตอบคำถามจากตัวเลือกเท่านั้น"
+
+[WhatIsYourUserType]
+other = "โปรดเลือกประเภทของผู้ใช้งาน"

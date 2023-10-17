@@ -22,6 +22,11 @@ type User struct {
 	Username   string
 	FirstName  string
 	LastName   string
+	Age			string
+	Gender		string
+	PrimaryMode	string
+	FirstImpression string
+	UserType	string
 	Email      string
 	ProfileURL string
 	Language   string
@@ -166,9 +171,9 @@ func (app *HailingApp) GetLocations(lang string, total int) ([]Location, error) 
 		fieldName = "name_th"
 	}
 	q := fmt.Sprintf(`SELECT id, %s, ST_AsGeoJSON(place)
-		FROM location WHERE active=true
+		FROM location WHERE active=true and length(%s)<=20
 		ORDER BY popularity DESC
-		LIMIT $1`, fieldName)
+		LIMIT $1`, fieldName, fieldName)
 	rows, err := app.pdb.Query(q, total)
 	if err != nil {
 		return nil, err
@@ -193,11 +198,11 @@ func (app *HailingApp) FindOrCreateUser(lineUserID string) (*User, error) {
 	err := app.pdb.QueryRow(`
 		SELECT
 			id, line_user_id, username, profile_url, lang,
-			first_name, last_name, email
+			first_name, last_name, email, user_type, gender, age, primary_mode, first_impression
 		FROM "user"
 		WHERE line_user_id=$1`,
 		lineUserID).Scan(
-		&row.ID, &row.LineUserID, &row.Username, &row.ProfileURL, &row.Language, &row.FirstName, &row.LastName, &row.Email)
+		&row.ID, &row.LineUserID, &row.Username, &row.ProfileURL, &row.Language, &row.FirstName, &row.LastName, &row.Email, &row.UserType, &row.Gender, &row.Age, &row.PrimaryMode, &row.FirstImpression)
 
 	if err != nil && strings.Contains(err.Error(), "no rows in result set") {
 		// we have to create a new record
@@ -559,7 +564,7 @@ func (app *HailingApp) UpdateCancellationReason(tripID string, reason string, ca
 // isLocationInServiceArea returns boolean
 func (app *HailingApp) isLocationInServiceArea(point [2]float64) (bool, error) {
 	var isIn bool
-	q := fmt.Sprintf(`select ST_WITHIN(ST_GeomFromText('POINT(%.6f %.6f)',4326), geometry) from service_area`, point[0],point[1])
+	q := fmt.Sprintf(`select ST_WITHIN(ST_GeomFromText('POINT(%.6f %.6f)',4326), geometry) from new_service_area`, point[0],point[1])
 	err := app.pdb.QueryRow(q).Scan(&isIn)
 	if err != nil {
 		log.Printf("[isLocationInServiceArea] %v", err)
