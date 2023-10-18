@@ -327,93 +327,43 @@ func (app *HailingApp) CompleteRegistration(replyToken string, user *User, reply
 				}),
 				Buttons: []QuickReplyButton{
 					{
-						Label: localizer.MustLocalize(&i18n.LocalizeConfig{
-							DefaultMessage: &i18n.Message{
-								ID:    "A_1_19",
-								Other: "1-19",
-							},
-						}),
+						Label: "1-19",
 						Text:  "1-19",
 					},
 					{
-						Label:localizer.MustLocalize(&i18n.LocalizeConfig{
-							DefaultMessage: &i18n.Message{
-								ID:    "A_20_24",
-								Other: "20-24",
-							},
-						}),
+						Label: "20-24",
 						Text:  "20-24",
 					},
 					{
-						Label:localizer.MustLocalize(&i18n.LocalizeConfig{
-							DefaultMessage: &i18n.Message{
-								ID:    "A_25_29",
-								Other: "25-29",
-							},
-						}),
+						Label: "25-29",
 						Text:  "25-29",
 					},
 					{
-						Label:localizer.MustLocalize(&i18n.LocalizeConfig{
-							DefaultMessage: &i18n.Message{
-								ID:    "A_30_34",
-								Other: "30-34",
-							},
-						}),
+						Label: "30-34",
 						Text:  "30-34",
 					},
 					{
-						Label:localizer.MustLocalize(&i18n.LocalizeConfig{
-							DefaultMessage: &i18n.Message{
-								ID:    "A_35_39",
-								Other: "35-39",
-							},
-						}),
+						Label: "35-39",
 						Text:  "35-39",
 					},
 					{
-						Label:localizer.MustLocalize(&i18n.LocalizeConfig{
-							DefaultMessage: &i18n.Message{
-								ID:    "A_40_44",
-								Other: "40-44",
-							},
-						}),
+						Label: "40-44",
 						Text:  "40-44",
 					},
 					{
-						Label:localizer.MustLocalize(&i18n.LocalizeConfig{
-							DefaultMessage: &i18n.Message{
-								ID:    "A_45_49",
-								Other: "45-49",
-							},
-						}),
+						Label: "45-49",
 						Text:  "45-49",
 					},
 					{
-						Label:localizer.MustLocalize(&i18n.LocalizeConfig{
-							DefaultMessage: &i18n.Message{
-								ID:    "A_50_54",
-								Other: "50-54",
-							},
-						}),
+						Label: "50-54",
 						Text:  "50-54",
 					},
 					{
-						Label:localizer.MustLocalize(&i18n.LocalizeConfig{
-							DefaultMessage: &i18n.Message{
-								ID:    "A_55_59",
-								Other: "55-59",
-							},
-						}),
+						Label: "55-59",
 						Text:  "55-59",
 					},
 					{
-						Label:localizer.MustLocalize(&i18n.LocalizeConfig{
-							DefaultMessage: &i18n.Message{
-								ID:    "A_60_64",
-								Other: "60-64",
-							},
-						}),
+						Label: "60-64",
 						Text:  "60-64",
 					},
 					{
@@ -1055,93 +1005,43 @@ func (app *HailingApp) initRegistrationProcess(replyToken string, user *User, lo
 			}),
 			Buttons: []QuickReplyButton{
 				{
-					Label: localizer.MustLocalize(&i18n.LocalizeConfig{
-						DefaultMessage: &i18n.Message{
-							ID:    "A_1_19",
-							Other: "1-19",
-						},
-					}),
+					Label: "1-19",
 					Text:  "1-19",
 				},
 				{
-					Label:localizer.MustLocalize(&i18n.LocalizeConfig{
-						DefaultMessage: &i18n.Message{
-							ID:    "A_20_24",
-							Other: "20-24",
-						},
-					}),
+					Label: "20-24",
 					Text:  "20-24",
 				},
 				{
-					Label:localizer.MustLocalize(&i18n.LocalizeConfig{
-						DefaultMessage: &i18n.Message{
-							ID:    "A_25_29",
-							Other: "25-29",
-						},
-					}),
+					Label: "25-29",
 					Text:  "25-29",
 				},
 				{
-					Label:localizer.MustLocalize(&i18n.LocalizeConfig{
-						DefaultMessage: &i18n.Message{
-							ID:    "A_30_34",
-							Other: "30-34",
-						},
-					}),
+					Label: "30-34",
 					Text:  "30-34",
 				},
 				{
-					Label:localizer.MustLocalize(&i18n.LocalizeConfig{
-						DefaultMessage: &i18n.Message{
-							ID:    "A_35_39",
-							Other: "35-39",
-						},
-					}),
+					Label: "35-39",
 					Text:  "35-39",
 				},
 				{
-					Label:localizer.MustLocalize(&i18n.LocalizeConfig{
-						DefaultMessage: &i18n.Message{
-							ID:    "A_40_44",
-							Other: "40-44",
-						},
-					}),
+					Label: "40-44",
 					Text:  "40-44",
 				},
 				{
-					Label:localizer.MustLocalize(&i18n.LocalizeConfig{
-						DefaultMessage: &i18n.Message{
-							ID:    "A_45_49",
-							Other: "45-49",
-						},
-					}),
+					Label: "45-49",
 					Text:  "45-49",
 				},
 				{
-					Label:localizer.MustLocalize(&i18n.LocalizeConfig{
-						DefaultMessage: &i18n.Message{
-							ID:    "A_50_54",
-							Other: "50-54",
-						},
-					}),
+					Label: "50-54",
 					Text:  "50-54",
 				},
 				{
-					Label:localizer.MustLocalize(&i18n.LocalizeConfig{
-						DefaultMessage: &i18n.Message{
-							ID:    "A_55_59",
-							Other: "55-59",
-						},
-					}),
+					Label: "55-59",
 					Text:  "55-59",
 				},
 				{
-					Label:localizer.MustLocalize(&i18n.LocalizeConfig{
-						DefaultMessage: &i18n.Message{
-							ID:    "A_60_64",
-							Other: "60-64",
-						},
-					}),
+					Label: "60-64",
 					Text:  "60-64",
 				},
 				{
