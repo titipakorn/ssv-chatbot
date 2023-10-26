@@ -225,14 +225,12 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 	msgs := []string{"", ""}
 
 	// First thig first -- user validation
-	user, _ := app.FindOrCreateUser(lineUserID)
+	// user, _ := app.FindOrCreateUser(lineUserID)
 	
-	user, localizer, err := app.Localizer(lineUserID)
-	if err != nil {
-		return app.replyText(err.Error())
-	}
+	user , localizer, err := app.Localizer(lineUserID)
 	
 	// if user.FirstName == "" || user.LastName == "" || user.Email == "" {
+	log.Printf("[handleNextStep] log User: %v", user)
 	if user.UserType == "" || user.Gender == "" || user.Email == "" || user.Age == "" || user.PrimaryMode == "" || user.FirstImpression == "" {
 		// ask user to fill up this first
 		return app.CompleteRegistration(replyToken, user, reply)
@@ -254,6 +252,10 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 
 	if strings.HasPrefix(reply.Text, "/") {
 		return app.BotCommandHandler(replyToken, lineUserID, reply)
+	}
+
+	if err != nil {
+		return app.replyText(err.Error())
 	}
 
 

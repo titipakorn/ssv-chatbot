@@ -198,12 +198,12 @@ func (app *HailingApp) FindOrCreateUser(lineUserID string) (*User, error) {
 	err := app.pdb.QueryRow(`
 		SELECT
 			id, line_user_id, username, profile_url, lang,
-			first_name, last_name, email, user_type, gender, age, primary_mode, first_impression
+			COALESCE(first_name,''), COALESCE(last_name,''), COALESCE(email,''), COALESCE(user_type,''), COALESCE(gender,''), COALESCE(age,''), COALESCE(primary_mode,''), COALESCE(first_impression,'')
 		FROM "user"
 		WHERE line_user_id=$1`,
 		lineUserID).Scan(
 		&row.ID, &row.LineUserID, &row.Username, &row.ProfileURL, &row.Language, &row.FirstName, &row.LastName, &row.Email, &row.UserType, &row.Gender, &row.Age, &row.PrimaryMode, &row.FirstImpression)
-
+	log.Printf("[FindOrCreateUser] log err: %v", err)
 	if err != nil && strings.Contains(err.Error(), "no rows in result set") {
 		// we have to create a new record
 		profile, botErr := app.bot.GetProfile(lineUserID).Do()
