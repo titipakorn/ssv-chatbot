@@ -231,7 +231,7 @@ func (app *HailingApp) handleNextStep(replyToken string, lineUserID string, repl
 	
 	// if user.FirstName == "" || user.LastName == "" || user.Email == "" {
 	log.Printf("[handleNextStep] log User: %v", user)
-	if user.UserType == "" || user.Gender == "" || user.Email == "" || user.Age == "" || user.PrimaryMode == "" || user.FirstImpression == "" {
+	if user.UserType == "" || user.Gender == "" || user.Email == "" || user.Age == "" || user.PrimaryMode == "" || user.FirstImpression == "" || user.Telephone == "" {
 		// ask user to fill up this first
 		return app.CompleteRegistration(replyToken, user, reply)
 	}else{

@@ -3,7 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
-	"errors"
+	// "errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -27,6 +27,7 @@ type User struct {
 	PrimaryMode	string
 	FirstImpression string
 	UserType	string
+	Telephone	string
 	Email      string
 	ProfileURL string
 	Language   string
@@ -198,11 +199,11 @@ func (app *HailingApp) FindOrCreateUser(lineUserID string) (*User, error) {
 	err := app.pdb.QueryRow(`
 		SELECT
 			id, line_user_id, username, profile_url, lang,
-			COALESCE(first_name,''), COALESCE(last_name,''), COALESCE(email,''), COALESCE(user_type,''), COALESCE(gender,''), COALESCE(age,''), COALESCE(primary_mode,''), COALESCE(first_impression,'')
+			COALESCE(first_name,''), COALESCE(last_name,''), COALESCE(email,''), COALESCE(user_type,''), COALESCE(gender,''), COALESCE(age,''), COALESCE(primary_mode,''), COALESCE(first_impression,''), COALESCE(tel,'')
 		FROM "user"
 		WHERE line_user_id=$1`,
 		lineUserID).Scan(
-		&row.ID, &row.LineUserID, &row.Username, &row.ProfileURL, &row.Language, &row.FirstName, &row.LastName, &row.Email, &row.UserType, &row.Gender, &row.Age, &row.PrimaryMode, &row.FirstImpression)
+		&row.ID, &row.LineUserID, &row.Username, &row.ProfileURL, &row.Language, &row.FirstName, &row.LastName, &row.Email, &row.UserType, &row.Gender, &row.Age, &row.PrimaryMode, &row.FirstImpression, &row.Telephone)
 	log.Printf("[FindOrCreateUser] log err: %v", err)
 	if err != nil && strings.Contains(err.Error(), "no rows in result set") {
 		// we have to create a new record
@@ -523,11 +524,11 @@ func (app *HailingApp) CancelReservation(rec *ReservationRecord) (string, error)
 	// }
 	
 	fmt.Print("[PSQL-CANCEL] ", trip)
-	if trip.PickedUpAt != nil && trip.PickedUpAt.Format("2006-01-01") != "0001-01-01" {
-		// cancel isn't possible now
-		// app.Cleanup(rec.LineUserID)
-		return "failed", errors.New("Cancellation is not allowed at this point")
-	}
+	// if trip.PickedUpAt != nil && trip.PickedUpAt.Format("2006-01-01") != "0001-01-01" {
+	// 	// cancel isn't possible now
+	// 	// app.Cleanup(rec.LineUserID)
+	// 	return "failed", errors.New("Cancellation is not allowed at this point")
+	// }
 	var tripID int
 	now := time.Now()
 	note := "User cancelled via line-bot"

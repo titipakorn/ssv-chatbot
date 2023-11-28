@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"regexp"
 	"net/mail"
 	"github.com/line/line-bot-sdk-go/linebot"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
@@ -809,14 +810,7 @@ func (app *HailingApp) CompleteRegistration(replyToken string, user *User, reply
 		return app.replyText(replyToken, msg)
 	}
 	if rec.Waiting == "email" {
-		// if(user.Email!=""){
-		// 	// Done with registration then asking to init
-		// 	app.Cancel(user.LineUserID)
-		// 	return app.registratonDone(replyToken, localizer)
-		// }
 		checked_error := true
-		// emailRegex := regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,4}$`)
-		// checked_error = emailRegex.MatchString(reply.Text)
 		_, email_parse_err := mail.ParseAddress(reply.Text)
 		checked_error = email_parse_err == nil
 		if checked_error==false {
@@ -829,14 +823,44 @@ func (app *HailingApp) CompleteRegistration(replyToken string, user *User, reply
 			return app.replyText(replyToken, msg)
 		}
 		log.Printf("[register] rec step 7: %v", reply.Text)
+		rec.State = "email"
+		rec.Waiting = "telephone"
+		app.SaveRecordToRedis(rec)
 		q := fmt.Sprintf(`"email" = '%s'`, reply.Text)
 		_, err := app.UpdateUserInfo(user.ID, q)
 		if err != nil {
 			return err
 		}
-		// Done with registration then asking to init
-		app.Cancel(user.LineUserID)
-		return app.registratonDone(replyToken, localizer)
+		msg := localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{
+				ID:    "WhatIsYourTelephone",
+				Other: "What's your telephone number?",
+			},
+		})
+		return app.replyText(replyToken, msg)
+	}
+	if rec.Waiting == "telephone" {
+		log.Printf("[register] rec step 8: %v", reply.Text)
+		phoneNumberPattern := regexp.MustCompile(`^0[0-9]{9}$`)
+		if phoneNumberPattern.MatchString(reply.Text) {
+			q := fmt.Sprintf(`"tel" = '%s'`, reply.Text)
+			_, err := app.UpdateUserInfo(user.ID, q)
+			if err != nil {
+				return err
+			}
+			// Done with registration then asking to init
+			app.Cancel(user.LineUserID)
+			return app.registratonDone(replyToken, localizer)
+		}else{
+			msg := localizer.MustLocalize(&i18n.LocalizeConfig{
+				DefaultMessage: &i18n.Message{
+					ID:    "WhatIsYourTelephone",
+					Other: "What's your telephone number?",
+				},
+			})
+			return app.replyText(replyToken, msg)
+		}
+		
 	}
 	return nil
 }
@@ -1234,6 +1258,8 @@ func (app *HailingApp) initRegistrationProcess(replyToken string, user *User, lo
 		}
 	} else if user.FirstImpression!="" {
 		nextStep = "email"
+	}else if user.Telephone!="" {
+		nextStep = "telephone"
 	}
 
 	rec := ReservationRecord{
@@ -1250,15 +1276,25 @@ func (app *HailingApp) initRegistrationProcess(replyToken string, user *User, lo
 		log.Printf("SAVE to Redis FAILED: %v", err)
 		return err
 	}
-	if nextStep!="email"{
+	if nextStep!="email" || nextStep!="telephone"{
 	return app.replyBack(replyToken, msg2)
 	} else {
-	msg_q := localizer.MustLocalize(&i18n.LocalizeConfig{
+		msg_q := ""
+		if(nextStep=="email"){
+	msg_q = localizer.MustLocalize(&i18n.LocalizeConfig{
 			DefaultMessage: &i18n.Message{
 				ID:    "WhatIsYourEmail",
 				Other: "What's your email address?",
 			},
 		})
+	}else{
+		msg_q = localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{
+				ID:    "WhatIsYourTelephone",
+				Other: "What's your telephone number?",
+			},
+		})
+	}
 	replies := []string{msg1, msg_q}
 	return app.replyText(replyToken, replies...)
 	}
